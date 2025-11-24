@@ -15,12 +15,16 @@ const MainLayout = ({ children }: Props) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-950 to-slate-900 text-white">
-      <nav className="flex items-center justify-between px-6 py-4 border-b border-white/10 backdrop-blur-xl">
-        <h1 className="text-xl font-semibold">Kanban Collab</h1>
+        <nav className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-white/10 backdrop-blur-xl">
+        <h1 className="text-xl font-semibold text-center sm:text-left">
+          Kanban Collab
+        </h1>
 
         {user && (
-          <div className="flex items-center space-x-4">
-            <span className="text-gray-300">{user.name}</span>
+          <div className="flex items-center justify-between sm:justify-end gap-4">
+            <span className="text-gray-300 text-sm sm:text-base">
+              {user.name}
+            </span>
 
             <Button
               variant="outline"
@@ -37,8 +41,7 @@ const MainLayout = ({ children }: Props) => {
           </div>
         )}
       </nav>
-
-      <main className="p-6">{children}</main>
+      <main className="p-4 sm:p-6">{children}</main>
     </div>
   );
 };

@@ -1,10 +1,11 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Login from "../pages/auth/Login";
 import Register from "../pages/auth/Register";
 import BoardsList from "../pages/boards/BoardsList";
 import Home from "../pages/home/Home";
 import PublicRoute from "./PublicRoute";
 import PrivateRoute from "./PrivateRoute";
+import BoardsListPage from "../pages/boards/BoardsList";
 
 const AppRoutes = () => (
   <BrowserRouter>
@@ -26,6 +27,17 @@ const AppRoutes = () => (
           </PublicRoute>
         }
       />
+
+      <Route
+        path="/boards"
+        element={
+          <PrivateRoute>
+            <BoardsListPage />
+          </PrivateRoute>
+        }
+      />
+
+      <Route path="*" element={<Navigate to="/boards" replace />} />
 
       <Route
         path="/boards"
