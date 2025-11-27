@@ -3,7 +3,8 @@ import {
   boardsApi,
   type BoardPayloadDTO,
 } from "../api/boardApi";
-import type { Board, Boards } from "../types/board";
+import type { Board } from "../types/board";
+import type { BoardsResponse } from "../types/api";
 
 const BOARDS_KEY = ["boards"];
 
@@ -15,7 +16,7 @@ interface UpdateBoardParams {
 export const useBoards = () => {
   const queryClient = useQueryClient();
 
-  const list = useQuery<Boards, Error>({
+  const list = useQuery<BoardsResponse, Error>({
     queryKey: BOARDS_KEY,
     queryFn: async () => {
       return await boardsApi.list();

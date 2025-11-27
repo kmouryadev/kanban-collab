@@ -7,7 +7,3 @@ export interface Board {
   createdAt: string;
   updatedAt: string;
 }
-
-export interface Boards {
-  boards: Board[]
-}

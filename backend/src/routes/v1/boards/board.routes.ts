@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { BoardController } from "../../controllers/v1/board.controller";
-import requireAuth from "../../middlewares/auth.middleware";
+import { BoardController } from "../../../controllers/v1/board.controller";
+import requireAuth from "../../../middlewares/auth.middleware";
 
 const router = Router();
 

@@ -18,7 +18,8 @@ import {
 import { Button } from "../../ui/button";
 import { Label } from "../../ui/label";
 import { Input } from "../../ui/input";
-import { Loader2, Palette } from "lucide-react";
+import { Palette } from "lucide-react";
+import { Spinner } from "../../ui/spinner";
 
 interface CreateBoardModalProps {
   trigger: React.ReactNode;
@@ -159,7 +160,7 @@ const CreateBoardModal = ({ trigger }: CreateBoardModalProps) => {
             >
               {create.isPending ? (
                 <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  <Spinner className="w-4 h-4 mr-2 animate-spin" />
                   Creating...
                 </>
               ) : (

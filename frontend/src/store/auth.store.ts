@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { AuthUser } from "../types/auth.dto";
+import type { AuthUser } from "../types/auth";
 import { Auth } from "../utils/auth";
 import { storage } from "../utils/storage";
 

@@ -1,4 +1,6 @@
-import type { Board, Boards } from "../types/board";
+import { BOARDS } from "../apiRoutes";
+import type { BoardResponse, BoardsResponse } from "../types/api";
+import type { Board } from "../types/board";
 import axiosClient from "./axiosClient";
 
 export interface BoardPayloadDTO {
@@ -8,18 +10,18 @@ export interface BoardPayloadDTO {
 }
 
 export const boardsApi = {
-  list: async (): Promise<Boards> => {
-    const res = await axiosClient.get<Boards>("/v1/boards");
+  list: async (): Promise<BoardsResponse> => {
+    const res = await axiosClient.get<BoardsResponse>(BOARDS.BASE);
     return res.data;
   },
 
   create: async (payload: BoardPayloadDTO): Promise<Board> => {
-    const res = await axiosClient.post<Board>("/v1/boards", payload);
+    const res = await axiosClient.post<Board>(BOARDS.BASE, payload);
     return res.data;
   },
 
-  get: async (id: string): Promise<Board> => {
-    const res = await axiosClient.get<Board>(`/v1/boards/${id}`);
+  get: async (id: string): Promise<BoardResponse> => {
+    const res = await axiosClient.get<BoardResponse>(BOARDS.SINGLE(id));
     return res.data;
   },
 
@@ -27,11 +29,11 @@ export const boardsApi = {
     id: string,
     payload: Partial<BoardPayloadDTO>
   ): Promise<Board> => {
-    const res = await axiosClient.patch<Board>(`/v1/boards/${id}`, payload);
+    const res = await axiosClient.patch<Board>(BOARDS.SINGLE(id), payload);
     return res.data;
   },
 
   remove: async (id: string): Promise<void> => {
-    await axiosClient.delete(`/v1/boards/${id}`);
+    await axiosClient.delete(BOARDS.SINGLE(id));
   },
 };

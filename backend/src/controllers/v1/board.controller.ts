@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import asyncHandler from "express-async-handler";
 import {
   createBoard,
   updateBoard,
@@ -8,66 +9,69 @@ import {
 } from "../../services/v1/board.service";
 import { MESSAGES } from "../../constants/messages";
 
-function getUserId(req: Request) {
-  const user = req.user;
-  return user.id;
-}
+const getUserId = (request: Request) => request.user.id;
 
 export const BoardController = {
-  createBoard: async (req: Request, res: Response) => {
-    const { title, description, backgroundColor } = req.body;
+  createBoard: asyncHandler(async (request: Request, response: Response) => {
+    const { title, description, backgroundColor } = request.body;
 
     const result = await createBoard(
       title,
       description,
       backgroundColor,
-      getUserId(req)
+      getUserId(request)
     );
 
     if (result.error) {
-      return res.status(result.status).json({ message: result.error });
+      response.status(result.status).json({ message: result.error });
+      return;
     }
 
-    return res.status(result.status).json({ board: result.data,  message: MESSAGES.BOARD.CREATE_SUCCESS  });
-  },
+    response.status(result.status).json({
+      board: result.data,
+      message: MESSAGES.BOARD.CREATE_SUCCESS,
+    });
+  }),
 
-  listBoards: async (req: Request, res: Response) => {
-    const result = await listBoards(getUserId(req));
+  listBoards: asyncHandler(async (request: Request, response: Response) => {
+    const result = await listBoards(getUserId(request));
 
-    return res.status(result.status).json({ boards: result.data });
-  },
+    response.status(result.status).json({ boards: result.data });
+  }),
 
-  getBoard: async (req: Request, res: Response) => {
-    const result = await getBoard(req.params.id);
+  getBoard: asyncHandler(async (request: Request, response: Response) => {
+    const result = await getBoard(request.params.id);
 
     if (result.error) {
-      return res.status(result.status).json({ message: result.error });
+      response.status(result.status).json({ message: result.error });
+      return;
     }
 
-    return res.status(result.status).json({ board: result.data });
-  },
+    response.status(result.status).json({ board: result.data });
+  }),
 
-  updateBoard: async (req: Request, res: Response) => {
-    const result = await updateBoard(
-      req.params.id,
-      getUserId(req),
-      req.body
-    );
+  updateBoard: asyncHandler(async (request: Request, response: Response) => {
+    const result = await updateBoard(request.params.id, getUserId(request), request.body);
 
     if (result.error) {
-      return res.status(result.status).json({ message: result.error });
+      response.status(result.status).json({ message: result.error });
+      return;
     }
 
-    return res.status(result.status).json({ board: result.data, message: MESSAGES.BOARD.UPDATE_SUCCESS });
-  },
+    response.status(result.status).json({
+      board: result.data,
+      message: MESSAGES.BOARD.UPDATE_SUCCESS,
+    });
+  }),
 
-  deleteBoard: async (req: Request, res: Response) => {
-    const result = await deleteBoard(req.params.id, getUserId(req));
+  deleteBoard: asyncHandler(async (request: Request, response: Response) => {
+    const result = await deleteBoard(request.params.id, getUserId(request));
 
     if (result.error) {
-      return res.status(result.status).json({ message: result.error });
+      response.status(result.status).json({ message: result.error });
+      return;
     }
 
-    return res.status(result.status).json({ message: result.message });
-  },
+    response.status(result.status).json({ message: result.message });
+  }),
 };

@@ -56,7 +56,7 @@ const BoardsListPage = () => {
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      filtered = filtered.filter((b) => b.title.toLowerCase().includes(q));
+      filtered = filtered.filter((filterBoard) => filterBoard.title.toLowerCase().includes(q));
     }
 
     const sorted = [...filtered].sort((a, b) => {
@@ -90,7 +90,7 @@ const BoardsListPage = () => {
   };
 
   const handleEdit = (boardId: string) => {
-    const board = list.data?.boards?.find((b) => b._id === boardId);
+    const board = list.data?.boards?.find((board) => board._id === boardId);
     if (board) {
       setEditingBoard(board);
       setEditModalOpen(true);
@@ -98,7 +98,7 @@ const BoardsListPage = () => {
   };
 
   const handleDelete = (boardId: string) => {
-    const board = list.data?.boards?.find((b) => b._id === boardId);
+    const board = list.data?.boards?.find((board) => board._id === boardId);
     if (board) {
       setDeletingBoard(board);
       setDeleteModalOpen(true);
@@ -161,7 +161,7 @@ const BoardsListPage = () => {
                   type="text"
                   placeholder="Search boards by title..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(event) => setSearchQuery(event.target.value)}
                   className="pl-10 pr-10 bg-slate-800 border-white/10 focus:border-indigo-500 focus:ring-indigo-500/20 placeholder:text-gray-500"
                 />
                 {searchQuery && (
@@ -324,14 +324,14 @@ const BoardsListPage = () => {
         !list.isError &&
         filteredAndSortedBoards.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredAndSortedBoards.map((b) => (
+            {filteredAndSortedBoards.map((board) => (
               <BoardCard
-                key={b._id}
-                board={b}
+                key={board._id}
+                board={board}
                 onCardClick={handleCardClick}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
-                isDeleting={deletingBoardId === b._id}
+                isDeleting={deletingBoardId === board._id}
               />
             ))}
           </div>

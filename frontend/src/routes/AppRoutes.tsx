@@ -6,6 +6,7 @@ import Home from "../pages/home/Home";
 import PublicRoute from "./PublicRoute";
 import PrivateRoute from "./PrivateRoute";
 import BoardsListPage from "../pages/boards/BoardsList";
+import BoardDetails from "../pages/boards/BoardDetails";
 
 const AppRoutes = () => (
   <BrowserRouter>
@@ -33,6 +34,15 @@ const AppRoutes = () => (
         element={
           <PrivateRoute>
             <BoardsListPage />
+          </PrivateRoute>
+        }
+      />
+
+      <Route
+        path="/board/:id"
+        element={
+          <PrivateRoute>
+            <BoardDetails />
           </PrivateRoute>
         }
       />
