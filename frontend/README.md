@@ -1,73 +1,173 @@
-# React + TypeScript + Vite
+# **Kanban Collaboration – Frontend**
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+**React | TypeScript | Vite | Zustand | TanStack Query | Socket.IO | shadcn/ui**
 
-Currently, two official plugins are available:
+This is the frontend application for the Collaborative Kanban Board.
+It interacts with a Node.js backend using REST APIs and synchronizes data in real-time using Socket.IO.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+The UI is built with **TailwindCSS** and a custom component library powered by **shadcn/ui**.
 
-## React Compiler
+---
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## **Overview**
 
-## Expanding the ESLint configuration
+This SPA (Single Page Application) uses:
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+* React 18 + TypeScript
+* Zustand for client-side state
+* TanStack Query for API caching and invalidation
+* Socket.IO Client for real-time updates
+* TailwindCSS + shadcn/ui for modern UI components
+* Axios for API communication
+* React Router for navigation
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+---
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## **Tech Stack**
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### **Core Technologies**
+
+* React 18
+* TypeScript
+* Vite
+* Zustand
+* TanStack Query
+* Socket.IO Client
+* Axios
+* TailwindCSS
+* **shadcn/ui**
+
+---
+
+## **Folder Structure**
+
+```
+frontend/
+│
+├── src/
+│   ├── api/                # Axios API wrappers and API calls
+│   ├── apiRoutes/          # API route constants
+│   ├── components/         
+│   │   ├── layout/         # Layout structures (navbar, sidebar, etc.)
+│   │   ├── molecules/      # UI components for List, Task, and Board
+│   │   ├── ui/             # shadcn/ui wrapper components & base UI
+│   ├── hooks/              # Queries, mutations, socket hooks
+│   ├── lib/                # Helpers (socket instance, toast, utils)
+│   ├── pages/              # Screens (Boards, BoardDetails, Auth, etc.)
+│   ├── store/              # Zustand global stores
+│   ├── routes/             # Route wrapper mentioned here
+│   ├── validation/         # all the validation for the forms used in project are mention here
+│   ├── types/              # TypeScript DTOs & interfaces
+│   ├── App.tsx             
+│   ├── main.tsx            
+│
+├── public/                 
+├── index.html
+├── tsconfig.json
+├── tailwind.config.js
+└── package.json
+
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+---
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## **Environment Variables**
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Create a `.env` file inside `frontend/`:
+
 ```
+VITE_BACKEND_URL=http://localhost:5000
+VITE_API_URL=http://localhost:5000/api
+```
+
+---
+
+## **Installation & Setup**
+
+### 1. Install dependencies
+
+```sh
+npm install
+```
+
+### 2. Run development server
+
+```sh
+npm run dev
+```
+
+App runs at:
+**[http://localhost:5173](http://localhost:5173)**
+
+---
+
+## **Socket.IO Integration**
+
+Shared socket instance:
+`src/lib/socket.ts`
+
+Real-time features handled via:
+`src/hooks/useBoardSocket.ts`
+
+Includes:
+
+* Token-based auth
+* Auto reconnect
+* Live board/list/task updates
+
+---
+
+## **UI Component System**
+
+Uses:
+
+### TailwindCSS
+
+Utility-first CSS for styling.
+
+### shadcn/ui
+
+Customizable, accessible components installed on demand.
+
+---
+
+## **Generating New UI Components (shadcn/ui)**
+
+To create any new UI component:
+
+1. Visit **[https://ui.shadcn.com/](https://ui.shadcn.com/)**
+
+2. Navigate to the component you want (e.g., Button, Dialog, Sheet)
+
+3. Copy the installation command shown (usually like):
+
+   ```sh
+   npx shadcn-ui add button
+   ```
+
+4. Run that command inside the **frontend folder**:
+
+   ```sh
+   cd frontend
+   npx shadcn-ui add <component-name>
+   ```
+
+This will automatically generate or update the component inside:
+ `src/components/ui/`
+
+Your design system grows automatically as you add components.
+
+---
+
+## **Key Features**
+
+* JWT authentication
+* Board listing & management
+* List creation, editing, deletion
+* Task creation, editing, deletion
+* Drag and drop (lists & tasks)
+* Real-time sync using Socket.IO
+* Share boards with other users
+* Mobile responsive layout
+
+---
