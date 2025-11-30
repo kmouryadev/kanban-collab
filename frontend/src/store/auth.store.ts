@@ -16,7 +16,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   token: storage.getToken(),
 
   setAuth: (user, token) => {
-    Auth.login(token);
+    if (token) Auth.login(token);
     set({ user, token });
   },
 

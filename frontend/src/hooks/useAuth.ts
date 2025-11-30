@@ -2,6 +2,7 @@ import { useMutation } from "@tanstack/react-query";
 import { loginApi, registerApi } from "../api/authApi";
 import type { LoginDTO, RegisterDTO, AuthResponse } from "../types/auth";
 import { useAuthStore } from "../store/auth.store";
+import { AppToast } from "../lib/appToast";
 
 export const useAuth = () => {
   const setAuth = useAuthStore((state) => state.setAuth);
@@ -15,8 +16,8 @@ export const useAuth = () => {
 
   const register = useMutation({
     mutationFn: (data: RegisterDTO) => registerApi(data),
-    onSuccess: (response: AuthResponse) => {
-      setAuth(response.user, response.token);
+    onSuccess: (response: { message: string }) => {
+      AppToast.success(response.message);
     },
   });
 
