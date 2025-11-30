@@ -17,6 +17,9 @@ export const MESSAGES = {
     DELETE_SUCCESS: "Board deleted successfully",
     UPDATE_FORBIDDEN: "You are not allowed to update this board",
     DELETE_FORBIDDEN: "You are not allowed to delete this board",
+    SHARE_FORBIDDEN: "Only owner can share board",
+    SHARED_OWNER_ACCESS: "Owner already has access",
+    SHARED_MEMBER_ACCESS:"User already a member"
   },
 
   LIST: {

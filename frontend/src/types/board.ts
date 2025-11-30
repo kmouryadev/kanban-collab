@@ -3,7 +3,18 @@ export interface Board {
   title: string;
   description?: string;
   backgroundColor?: string;
-  owner: string;
+  owner: {
+    _id: string;
+    name: string;
+    email: string;
+  };
+  members: Array<{
+    _id: string;
+    name: string;
+    email: string;
+    createdAt: string;
+    updatedAt: string;
+  }>;
   createdAt: string;
   updatedAt: string;
 }

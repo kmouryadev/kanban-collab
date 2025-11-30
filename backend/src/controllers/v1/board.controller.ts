@@ -6,6 +6,7 @@ import {
   listBoards,
   getBoard,
   deleteBoard,
+  shareBoard,
 } from "../../services/v1/board.service";
 import { MESSAGES } from "../../constants/messages";
 
@@ -51,7 +52,11 @@ export const BoardController = {
   }),
 
   updateBoard: asyncHandler(async (request: Request, response: Response) => {
-    const result = await updateBoard(request.params.id, getUserId(request), request.body);
+    const result = await updateBoard(
+      request.params.id,
+      getUserId(request),
+      request.body
+    );
 
     if (result.error) {
       response.status(result.status).json({ message: result.error });
@@ -73,5 +78,23 @@ export const BoardController = {
     }
 
     response.status(result.status).json({ message: result.message });
+  }),
+
+  shareBoard: asyncHandler(async (request, response) => {
+    const { id } = request.params;
+    const { email } = request.body;
+
+    const result = await shareBoard(id, request.user.id, email);
+
+    if (result.error) {
+      response.status(result.status).json({ message: result.error });
+      return;
+    }
+
+    response.status(result.status).json({
+      message: "Board shared successfully",
+      data: result.data,
+    });
+    return;
   }),
 };

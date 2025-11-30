@@ -1,12 +1,13 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+
 import {
-  GripVertical,
   MoreHorizontal,
   Pencil,
   Trash2,
   MoveRight,
+  GripVertical,
 } from "lucide-react";
 
 import type { Task } from "../../../types/tasks";
@@ -33,23 +34,25 @@ const makeTaskId = (taskId: string, listId: string) =>
 interface Props {
   task: Task;
   isMobile?: boolean;
-  allLists?: List[];
-  boardId?: string;
+  allLists: List[];
+  boardId: string;
+  isOwner: boolean;
   onClick: (task: Task) => void;
   onEdit: (task: Task) => void;
   onDelete: (task: Task) => void;
 }
 
-const priorityConfig = {
+const PRIORITY = {
   low: { color: "bg-blue-500", label: "Low" },
   medium: { color: "bg-yellow-500", label: "Medium" },
   high: { color: "bg-red-500", label: "High" },
-};
+} as const;
 
 const TaskCard: React.FC<Props> = ({
   task,
   isMobile = false,
-  allLists = [],
+  allLists,
+  isOwner,
   boardId,
   onClick,
   onEdit,
@@ -61,34 +64,36 @@ const TaskCard: React.FC<Props> = ({
       id: makeTaskId(task._id, task.listId),
       disabled: isMobile,
     });
-  const movetask = useMoveTask(task.boardId);
-  const priority = task.priority || "medium";
-  const priorityInfo = priorityConfig[priority];
+  const moveTask = useMoveTask();
+  const priority = task.priority ?? "medium";
+  const priorityInfo = useMemo(() => PRIORITY[priority], [priority]);
 
-  const handleMoveToList = async (newListId: string) => {
+  const handleMoveToList = (newListId: string) => {
     const oldListId = task.listId;
+
     if (oldListId === newListId) return;
     if (!boardId) return;
+    const srcKey = TASKS_QUERY_KEY(boardId, oldListId);
+    const destKey = TASKS_QUERY_KEY(boardId, newListId);
 
     const oldTasks =
-      queryClient.getQueryData<TasksResponse>(
-        TASKS_QUERY_KEY(boardId, oldListId)
-      )?.tasks ?? [];
-
+      queryClient.getQueryData<TasksResponse>(srcKey)?.tasks ?? [];
     const newTasks =
-      queryClient.getQueryData<TasksResponse>(
-        TASKS_QUERY_KEY(boardId, newListId)
-      )?.tasks ?? [];
+      queryClient.getQueryData<TasksResponse>(destKey)?.tasks ?? [];
 
     const updatedOld = oldTasks.filter((oldTask) => oldTask._id !== task._id);
     const newOrder = newTasks.length;
 
     const updatedNew = [
       ...newTasks,
-      { ...task, listId: newListId, order: newOrder },
+      {
+        ...task,
+        listId: newListId,
+        order: newOrder,
+      },
     ];
 
-    movetask.mutate({
+    moveTask.mutate({
       taskId: task._id,
       srcListId: oldListId,
       destListId: newListId,
@@ -106,14 +111,14 @@ const TaskCard: React.FC<Props> = ({
         transition,
       }}
       className={cn(
-        "p-4 rounded-lg bg-slate-800 border-white/10 border shadow-sm",
+        "p-4 rounded-lg bg-slate-800 border border-white/10 shadow-sm",
         "cursor-pointer select-none hover:shadow-lg transition-all"
       )}
       onClick={() => onClick(task)}
     >
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-2">
         <div className="flex items-start gap-3 flex-1">
-          {!isMobile && (
+          {!isMobile && isOwner && (
             <Button
               {...listeners}
               {...attributes}
@@ -145,72 +150,74 @@ const TaskCard: React.FC<Props> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-2 ml-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={(event) => event.stopPropagation()}
-                className="text-gray-300 hover:text-white hover:bg-white/10"
-              >
-                <MoreHorizontal className="w-4 h-4" />
-              </Button>
-            </DropdownMenuTrigger>
+        {isOwner && (
+          <div className="flex items-center gap-2 ml-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={(event) => event.stopPropagation()}
+                  className="text-gray-300 hover:text-white hover:bg-white/10"
+                >
+                  <MoreHorizontal className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
 
-            <DropdownMenuContent
-              align="end"
-              className="bg-slate-900 border-white/10 w-48"
-            >
-              <DropdownMenuItem
+              <DropdownMenuContent
+                align="end"
+                className="bg-slate-900 border-white/10 w-48"
+              >
+                <DropdownMenuItem
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onEdit(task);
+                  }}
+                  className="text-gray-200 hover:bg-white/5 cursor-pointer"
+                >
+                  <Pencil className="w-4 h-4 mr-2" />
+                  Edit
+                </DropdownMenuItem>
+
+                {isMobile && allLists.length > 1 && boardId && (
+                  <>
+                    <DropdownMenuSeparator className="bg-white/10" />
+                    <DropdownMenuLabel className="text-gray-400 text-xs">
+                      Move to List
+                    </DropdownMenuLabel>
+                    {allLists
+                      .filter((list) => list._id !== task.listId)
+                      .map((list) => (
+                        <DropdownMenuItem
+                          key={list._id}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleMoveToList(list._id);
+                          }}
+                          className="text-gray-200 hover:bg-white/5 cursor-pointer"
+                        >
+                          <MoveRight className="w-4 h-4 mr-2" />
+                          {list.title}
+                        </DropdownMenuItem>
+                      ))}
+                    <DropdownMenuSeparator className="bg-white/10" />
+                  </>
+                )}
+
+                <DropdownMenuItem
                 onClick={(event) => {
                   event.stopPropagation();
-                  onEdit(task);
-                }}
-                className="text-gray-200 hover:bg-white/5 cursor-pointer"
-              >
-                <Pencil className="w-4 h-4 mr-2" />
-                Edit
-              </DropdownMenuItem>
-
-              {isMobile && allLists.length > 1 && boardId && (
-                <>
-                  <DropdownMenuSeparator className="bg-white/10" />
-                  <DropdownMenuLabel className="text-gray-400 text-xs">
-                    Move to List
-                  </DropdownMenuLabel>
-                  {allLists
-                    .filter((list) => list._id !== task.listId)
-                    .map((list) => (
-                      <DropdownMenuItem
-                        key={list._id}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          handleMoveToList(list._id);
-                        }}
-                        className="text-gray-200 hover:bg-white/5 cursor-pointer"
-                      >
-                        <MoveRight className="w-4 h-4 mr-2" />
-                        {list.title}
-                      </DropdownMenuItem>
-                    ))}
-                  <DropdownMenuSeparator className="bg-white/10" />
-                </>
-              )}
-
-              <DropdownMenuItem
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onDelete(task);
-                }}
-                className="text-red-400 hover:bg-red-500/10 cursor-pointer"
-              >
-                <Trash2 className="w-4 h-4 mr-2" />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+                    onDelete(task);
+                  }}
+                  className="text-red-400 hover:bg-red-500/10 cursor-pointer"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
       </div>
     </div>
   );

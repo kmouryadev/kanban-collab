@@ -113,5 +113,6 @@ router.patch("/:id", BoardController.updateBoard);
  *         description: Board deleted
  */
 router.delete("/:id", BoardController.deleteBoard);
+router.post("/:id/share", BoardController.shareBoard);
 
 export default router;

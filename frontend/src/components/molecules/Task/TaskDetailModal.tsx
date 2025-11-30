@@ -12,6 +12,7 @@ import type { Task } from "../../../types/tasks";
 interface TaskDetailModalProps {
   task: Task | null;
   open: boolean;
+  isOwner: boolean;
   onOpenChange: (open: boolean) => void;
   onEdit?: (task: Task) => void;
   onDelete?: (task: Task) => void;
@@ -26,6 +27,7 @@ const priorityConfig = {
 const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   task,
   open,
+  isOwner,
   onOpenChange,
   onEdit,
   onDelete,
@@ -100,30 +102,32 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
           </div>
         </div>
 
-        <div className="flex justify-end gap-3 mt-8 pt-6 border-t border-white/10">
-          <Button
-            variant="outline"
-            onClick={() => {
-              onEdit?.(task);
-              onOpenChange(false);
-            }}
-            className="border-white/10 text-white hover:bg-white/5"
-          >
-            <Edit className="w-4 h-4 mr-2" />
-            Edit Task
-          </Button>
-          <Button
-            variant="default"
-            onClick={() => {
-              onDelete?.(task);
-              onOpenChange(false);
-            }}
-            className="bg-red-600 hover:bg-red-700"
-          >
-            <Trash2 className="w-4 h-4 mr-2" />
-            Delete Task
-          </Button>
-        </div>
+        {isOwner && (
+          <div className="flex justify-end gap-3 mt-8 pt-6 border-t border-white/10">
+            <Button
+              variant="outline"
+              onClick={() => {
+                onEdit?.(task);
+                onOpenChange(false);
+              }}
+              className="border-white/10 text-white hover:bg-white/5"
+            >
+              <Edit className="w-4 h-4 mr-2" />
+              Edit Task
+            </Button>
+            <Button
+              variant="default"
+              onClick={() => {
+                onDelete?.(task);
+                onOpenChange(false);
+              }}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete Task
+            </Button>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

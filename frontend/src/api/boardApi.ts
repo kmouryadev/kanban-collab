@@ -36,4 +36,8 @@ export const boardsApi = {
   remove: async (id: string): Promise<void> => {
     await axiosClient.delete(BOARDS.SINGLE(id));
   },
+
+  share(boardId: string, email: string) {
+    return axiosClient.post(BOARDS.SHARED(boardId), { email });
+  },
 };

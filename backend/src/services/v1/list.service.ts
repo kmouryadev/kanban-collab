@@ -5,6 +5,13 @@ import { createError } from "../../utils/error";
 import { HTTP } from "../../constants/httpCodes";
 import { MESSAGES } from "../../constants/messages";
 
+import {
+  emitListCreated,
+  emitListUpdated,
+  emitListDeleted,
+  emitListReordered,
+} from "../../socket/emit/list";
+
 export const ListService = {
   async createList(
     boardId: string,
@@ -24,12 +31,18 @@ export const ListService = {
       boardId: new Types.ObjectId(boardId),
       order: count,
     });
+    emitListCreated(boardId, newList);
 
     return newList;
   },
 
   async getLists(boardId: string, userId: string): Promise<IList[]> {
-    const board = await BoardModel.findOne({ _id: boardId, owner: userId });
+    const board = await BoardModel.findOne({
+      _id: boardId,
+      $or: [{ owner: userId }, { members: userId }],
+    })
+      .populate("owner", "_id name email")
+      .populate("members", "_id name email");
 
     if (!board) {
       throw createError(HTTP.NOT_FOUND, MESSAGES.BOARD.NOT_FOUND);
@@ -54,6 +67,7 @@ export const ListService = {
 
     list.title = title;
     await list.save();
+    emitListUpdated(list.boardId.toString(), list);
 
     return list;
   },
@@ -67,8 +81,8 @@ export const ListService = {
       owner: userId,
     });
     if (!board) throw createError(HTTP.FORBIDDEN, MESSAGES.SERVER.FORBIDDEN);
-
     await list.deleteOne();
+    emitListDeleted(list.boardId.toString(), listId);
   },
 
   async reorderLists(boardId: string, userId: string, orderedIds: string[]) {
@@ -80,6 +94,7 @@ export const ListService = {
     );
 
     await Promise.all(operations);
+    emitListReordered(boardId, orderedIds);
 
     return { message: MESSAGES.LIST.RE_ORDERED };
   },

@@ -6,6 +6,7 @@ import { format } from "date-fns";
 
 interface Props {
   board: Board;
+  isOwner: boolean;
   onCardClick: (boardId: string) => void;
   onEdit: (boardId: string) => void;
   onDelete: (boardId: string) => void;
@@ -16,6 +17,7 @@ const BoardCard: FC<Props> = ({
   board,
   onCardClick,
   onEdit,
+  isOwner,
   onDelete,
   isDeleting = false,
 }) => {
@@ -145,21 +147,23 @@ const BoardCard: FC<Props> = ({
           </div>
         </div>
 
-        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity mt-auto">
-          <Button onClick={handleEdit} size="sm" className={editButtonClass}>
-            <Pencil className="w-4 h-4 mr-1.5" />
-            Edit
-          </Button>
-          <Button
-            onClick={handleDelete}
-            size="sm"
-            disabled={isDeleting}
-            className={deleteButtonClass}
-          >
-            <Trash2 className="w-4 h-4 mr-1.5" />
-            {isDeleting ? "Deleting..." : "Delete"}
-          </Button>
-        </div>
+        {isOwner && (
+          <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity mt-auto">
+            <Button onClick={handleEdit} size="sm" className={editButtonClass}>
+              <Pencil className="w-4 h-4 mr-1.5" />
+              Edit
+            </Button>
+            <Button
+              onClick={handleDelete}
+              size="sm"
+              disabled={isDeleting}
+              className={deleteButtonClass}
+            >
+              <Trash2 className="w-4 h-4 mr-1.5" />
+              {isDeleting ? "Deleting..." : "Delete"}
+            </Button>
+          </div>
+        )}
       </div>
 
       <div

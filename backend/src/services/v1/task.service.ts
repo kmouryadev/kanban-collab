@@ -6,6 +6,14 @@ import { createError } from "../../utils/error";
 import { HTTP } from "../../constants/httpCodes";
 import { MESSAGES } from "../../constants/messages";
 
+import {
+  emitTaskCreated,
+  emitTaskUpdated,
+  emitTaskDeleted,
+  emitTaskMoved,
+  emitTaskReordered,
+} from "../../socket/emit/task";
+
 export const TaskService = {
   async createTask(
     boardId: string,
@@ -31,6 +39,7 @@ export const TaskService = {
       listId: new Types.ObjectId(listId),
       order: count,
     });
+    emitTaskCreated(boardId, listId, task);
 
     return task;
   },
@@ -40,7 +49,10 @@ export const TaskService = {
     listId: string,
     userId: string
   ): Promise<ITask[]> {
-    const board = await BoardModel.findOne({ _id: boardId, owner: userId });
+    const board = await BoardModel.findOne({
+      _id: boardId,
+      $or: [{ owner: userId }, { members: userId }],
+    });
     if (!board) throw createError(HTTP.NOT_FOUND, MESSAGES.BOARD.NOT_FOUND);
 
     const list = await ListModel.findOne({ _id: listId, boardId });
@@ -69,6 +81,8 @@ export const TaskService = {
     if (data.priority !== undefined) task.priority = data.priority;
 
     await task.save();
+    emitTaskUpdated(task.boardId.toString(), task);
+
     return task;
   },
 
@@ -83,6 +97,7 @@ export const TaskService = {
     if (!board) throw createError(HTTP.FORBIDDEN, MESSAGES.SERVER.FORBIDDEN);
 
     await task.deleteOne();
+    emitTaskDeleted(task.boardId.toString(), taskId, task.listId.toString());
   },
 
   async moveTask(
@@ -116,6 +131,7 @@ export const TaskService = {
     task.order = newOrder;
 
     await task.save();
+    emitTaskMoved(task.boardId.toString(), task, oldListId, newListId);
 
     return task;
   },
@@ -135,6 +151,7 @@ export const TaskService = {
     );
 
     await Promise.all(ops);
+    emitTaskReordered(list.boardId.toString(), listId, orderedIds);
 
     return { message: MESSAGES.TASK.RE_ORDERED };
   },

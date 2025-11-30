@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import {
   DndContext,
   closestCenter,
@@ -20,6 +20,8 @@ import type { List } from "../../../types/list";
 import type { Task } from "../../../types/tasks";
 import type { TasksResponse } from "../../../types/api";
 
+import ListColumn from "../List/ListColumn";
+
 import {
   reorderListsLocal,
   reorderTasksOnSameList,
@@ -27,13 +29,12 @@ import {
 } from "../../../utils/reorder";
 
 import { useLists } from "../../../hooks/useLists";
-import { taskApi } from "../../../api/taskApi";
+import { useMoveTask } from "../../../hooks/useMoveTasks";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-
-import ListColumn from "../List/ListColumn";
+import { taskApi } from "../../../api/taskApi";
 import { TASKS_QUERY_KEY } from "../../../hooks/useTasks";
 import { AppToast } from "../../../lib/appToast";
-import { useMoveTask } from "../../../hooks/useMoveTasks";
+import { useSocket } from "../../../hooks/useSocket";
 
 const makeListId = (id: string) => `list:${id}`;
 
@@ -42,12 +43,12 @@ type DragMeta =
   | { type: "task"; taskId: string; listId: string }
   | null;
 
-const parseId = (id: string): DragMeta => {
-  if (id.startsWith("list:")) {
-    return { type: "list", listId: id.split(":")[1] };
+const parseId = (value: string): DragMeta => {
+  if (value.startsWith("list:")) {
+    return { type: "list", listId: value.split(":")[1] };
   }
-  if (id.startsWith("task:")) {
-    const [, taskId, listId] = id.split(":");
+  if (value.startsWith("task:")) {
+    const [, taskId, listId] = value.split(":");
     return { type: "task", taskId, listId };
   }
   return null;
@@ -58,7 +59,8 @@ type Props = {
   lists: List[];
   tasksByList: Record<string, Task[]>;
   isMobile?: boolean;
-
+  onDragStateChange?: (dragging: boolean) => void;
+  isOwner: boolean;
   onOpenTaskEdit?: (task: Task) => void;
   onOpenTaskCreate?: (list: List) => void;
   onOpenTaskDelete?: (task: Task) => void;
@@ -72,6 +74,8 @@ const BoardDndContext: React.FC<Props> = ({
   lists,
   tasksByList,
   isMobile = false,
+  onDragStateChange,
+  isOwner,
   onOpenTaskEdit,
   onOpenTaskCreate,
   onOpenListEdit,
@@ -79,8 +83,9 @@ const BoardDndContext: React.FC<Props> = ({
   onOpenTaskDelete,
   onOpenTaskDetail,
 }) => {
+  const { socket } = useSocket();
   const { reorder: reorderListsMutation } = useLists(boardId);
-  const moveTask = useMoveTask(boardId);
+  const moveTask = useMoveTask();
   const queryClient = useQueryClient();
 
   const { mutate: reorderTasks } = useMutation({
@@ -128,14 +133,114 @@ const BoardDndContext: React.FC<Props> = ({
     },
   });
 
+  const isDraggingRef = useRef(false);
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor),
     useSensor(KeyboardSensor)
   );
 
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleListsReordered = (payload: { orderedIds: string[] }) => {
+      if (isDraggingRef.current) return;
+
+      const map = new Map(lists.map((list) => [list._id, list]));
+      const reordered = payload.orderedIds
+        .map((id) => map.get(id))
+        .filter(Boolean) as List[];
+
+      queryClient.setQueryData(["lists", boardId], { lists: reordered });
+    };
+
+    const handleTaskMoved = (payload: {
+      taskId: string;
+      srcListId: string;
+      destListId: string;
+      newOrder: number;
+    }) => {
+      if (isDraggingRef.current) return;
+
+      const { taskId, srcListId, destListId, newOrder } = payload;
+
+      const srcKey = TASKS_QUERY_KEY(boardId, srcListId);
+      const destKey = TASKS_QUERY_KEY(boardId, destListId);
+
+      const prevSrc =
+        queryClient.getQueryData<TasksResponse>(srcKey)?.tasks ?? [];
+      const prevDest =
+        queryClient.getQueryData<TasksResponse>(destKey)?.tasks ?? [];
+
+      const movedTask = prevSrc.find((task) => task._id === taskId);
+      if (!movedTask) return;
+
+      const updatedSrc = prevSrc.filter((task) => task._id !== taskId);
+
+      const updatedDest = [...prevDest];
+      updatedDest.splice(newOrder, 0, {
+        ...movedTask,
+        listId: destListId,
+        order: newOrder,
+      });
+
+      const reorderedDest = updatedDest.map((task, idx) => ({
+        ...task,
+        order: idx,
+      }));
+
+      queryClient.setQueryData<TasksResponse>(srcKey, {
+        tasks: updatedSrc,
+      });
+
+      queryClient.setQueryData<TasksResponse>(destKey, {
+        tasks: reorderedDest,
+      });
+    };
+
+    const handleTasksReordered = (payload: {
+      listId: string;
+      orderedIds: string[];
+    }) => {
+      if (isDraggingRef.current) return;
+
+      const { listId, orderedIds } = payload;
+      const key = TASKS_QUERY_KEY(boardId, listId);
+
+      const prev = queryClient.getQueryData<TasksResponse>(key);
+      if (!prev) return;
+
+      const map = new Map(prev.tasks.map((task) => [task._id, task]));
+      const updated = orderedIds
+        .map((id: string, idx: number) => {
+          const item = map.get(id);
+          if (!item) return null;
+          return { ...item, order: idx };
+        })
+        .filter(Boolean) as Task[];
+
+      queryClient.setQueryData<TasksResponse>(key, {
+        tasks: updated,
+      });
+    };
+
+    socket.on("realtime:lists:reordered", handleListsReordered);
+    socket.on("realtime:task:moved", handleTaskMoved);
+    socket.on("realtime:tasks:reordered", handleTasksReordered);
+
+    return () => {
+      socket.off("realtime:lists:reordered", handleListsReordered);
+      socket.off("realtime:task:moved", handleTaskMoved);
+      socket.off("realtime:tasks:reordered", handleTasksReordered);
+    };
+  }, [socket, lists, queryClient, boardId]);
+
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
+      isDraggingRef.current = false;
+      onDragStateChange?.(false);
+
       const { active, over } = event;
       if (!over) return;
       if (active.id === over.id) return;
@@ -160,7 +265,7 @@ const BoardDndContext: React.FC<Props> = ({
 
       if (activeId.type === "task") {
         const src = activeId.listId;
-        const dst = overId.type === "task" ? overId.listId : overId.listId;
+        const dst = overId.listId;
 
         const sourceTasks = tasksByList[src] ?? [];
         const destTasks = tasksByList[dst] ?? [];
@@ -199,30 +304,40 @@ const BoardDndContext: React.FC<Props> = ({
           dst
         );
 
-        const newSrcIds = updatedSource.map((task) => task._id);
-        const newDestIds = updatedDest.map((task) => task._id);
-
         moveTask.mutate({
           taskId: activeId.taskId,
           srcListId: src,
           destListId: dst,
           newOrder: toIndex,
-          newSrc: newSrcIds,
-          newDest: newDestIds,
+          newSrc: updatedSource.map((task) => task._id),
+          newDest: updatedDest.map((task) => task._id),
         });
 
         return;
       }
     },
-    [lists, tasksByList, reorderListsMutation, reorderTasks, moveTask]
+    [
+      lists,
+      tasksByList,
+      reorderListsMutation,
+      moveTask,
+      reorderTasks,
+      onDragStateChange,
+    ]
   );
+
+  const handleDragStart = () => {
+    isDraggingRef.current = true;
+    onDragStateChange?.(true);
+  };
 
   return (
     <DndContext
       sensors={sensors}
       collisionDetection={closestCenter}
-      measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
+      onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
+      measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
     >
       <SortableContext
         items={lists.map((l) => makeListId(l._id))}
@@ -241,6 +356,7 @@ const BoardDndContext: React.FC<Props> = ({
                 isMobile={isMobile}
                 allLists={lists}
                 boardId={boardId}
+                isOwner={isOwner}
                 onAddTask={() => onOpenTaskCreate?.(list)}
                 onEditList={() => onOpenListEdit?.(list)}
                 onDeleteList={() => onOpenListDelete?.(list)}

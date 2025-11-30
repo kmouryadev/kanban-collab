@@ -47,15 +47,13 @@ const DeleteListModal = ({
             </AlertDialogTitle>
           </div>
           <AlertDialogDescription className="text-gray-400 text-base">
-            <div className="flex flex-col items-start text-start gap-2"></div>
-            <p>
+            <span>
               Are you sure you want to delete{" "}
-              <span className="font-semibold text-white">"{list.title}"</span>?{" "}
-            </p>
-            <p>
+              <span className="font-semibold text-white">"{list.title}"?</span>?{" "}
+              <br />
               This action cannot be undone. All tasks in this list will also be
               permanently deleted.
-            </p>
+            </span>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter className="gap-2 sm:gap-2">

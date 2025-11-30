@@ -9,6 +9,7 @@ export const AUTH = {
 export const BOARDS = {
   BASE: `${API_BASE}/boards`,
   SINGLE: (id: string) => `${API_BASE}/boards/${id}`,
+  SHARED: (id: string) => `${API_BASE}/boards/${id}/share`,
 };
 
 export const LISTS = {

@@ -39,19 +39,15 @@ const DeleteBoardModal = ({
             </AlertDialogTitle>
           </div>
           <AlertDialogDescription className="text-gray-400 text-base">
-            <div className="flex flex-col items-start text-start gap-2">
-              <p>
-                Are you sure you want to delete{" "}
-                <span className="font-semibold text-white">
-                  "{board?.title}"
-                </span>
-                ?
-              </p>
-              <p>
-                This action cannot be undone. All tasks, columns, and data
-                associated with this board will be permanently deleted.
-              </p>
-            </div>
+            <span>
+              Are you sure you want to delete{" "}
+              <span className="font-semibold text-white">
+                "{board?.title}"?{" "}
+              </span>
+            </span>
+            <br />
+            This action cannot be undone. All tasks, columns, and data
+            associated with this board will be permanently deleted.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter className="gap-2 sm:gap-2">

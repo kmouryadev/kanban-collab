@@ -29,6 +29,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../components/ui/select";
+import { useAuthStore } from "../../store/auth.store";
+import { useRealtimeBoardsList } from "../../hooks/useRealTimeBoardListSyncSocket";
 
 type SortOption = "newest" | "oldest" | "recently-updated" | "least-updated";
 
@@ -42,6 +44,8 @@ const BoardsListPage = () => {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("recently-updated");
+  const currentUser = useAuthStore((state) => state.user);
+  useRealtimeBoardsList(list.data?.boards || []);
 
   useEffect(() => {
     if (list.isError) {
@@ -56,7 +60,9 @@ const BoardsListPage = () => {
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      filtered = filtered.filter((filterBoard) => filterBoard.title.toLowerCase().includes(q));
+      filtered = filtered.filter((filterBoard) =>
+        filterBoard.title.toLowerCase().includes(q)
+      );
     }
 
     const sorted = [...filtered].sort((a, b) => {
@@ -324,16 +330,24 @@ const BoardsListPage = () => {
         !list.isError &&
         filteredAndSortedBoards.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredAndSortedBoards.map((board) => (
-              <BoardCard
-                key={board._id}
-                board={board}
-                onCardClick={handleCardClick}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-                isDeleting={deletingBoardId === board._id}
-              />
-            ))}
+            {filteredAndSortedBoards.map((board) => {
+              const ownerId =
+                typeof board.owner === "string" ? board.owner : board.owner._id;
+
+              const isOwner = currentUser?.id === ownerId;
+
+              return (
+                <BoardCard
+                  key={board._id}
+                  board={board}
+                  onCardClick={handleCardClick}
+                  isOwner={isOwner}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                  isDeleting={deletingBoardId === board._id}
+                />
+              );
+            })}
           </div>
         )}
 

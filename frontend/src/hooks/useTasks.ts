@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { taskApi } from "../api/taskApi";
-import type { CreateTaskDTO, UpdateTaskDTO, Task } from "../types/tasks";
+import type { CreateTaskDTO, Task, UpdateTaskDTO } from "../types/tasks";
 import type { TasksResponse } from "../types/api";
 import { AppToast } from "../lib/appToast";
 
@@ -22,14 +22,7 @@ export const useTasks = (boardId: string, listId: string) => {
   const create = useMutation({
     mutationFn: (data: CreateTaskDTO) =>
       taskApi.createTask(boardId, listId, data),
-    onSuccess: (res) => {
-      queryClient.setQueryData<TasksResponse | undefined>(
-        TASKS_QUERY_KEY(boardId, listId),
-        (old) => {
-          if (!old) return { tasks: [res] };
-          return { tasks: [...old.tasks, res] };
-        }
-      );
+    onSuccess: () => {
       AppToast.success("Task Created");
     },
     onError: (err: Error) =>
@@ -40,9 +33,6 @@ export const useTasks = (boardId: string, listId: string) => {
     mutationFn: ({ taskId, data }: { taskId: string; data: UpdateTaskDTO }) =>
       taskApi.updateTask(taskId, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: TASKS_QUERY_KEY(boardId, listId),
-      });
       AppToast.success("Task Updated");
     },
     onError: (err: Error) =>
@@ -52,9 +42,6 @@ export const useTasks = (boardId: string, listId: string) => {
   const remove = useMutation({
     mutationFn: (taskId: string) => taskApi.deleteTask(taskId),
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: TASKS_QUERY_KEY(boardId, listId),
-      });
       AppToast.success("Task Deleted");
     },
     onError: (err: Error) =>

@@ -1,8 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  boardsApi,
-  type BoardPayloadDTO,
-} from "../api/boardApi";
+import { boardsApi, type BoardPayloadDTO } from "../api/boardApi";
 import type { Board } from "../types/board";
 import type { BoardsResponse } from "../types/api";
 
@@ -33,14 +30,10 @@ export const useBoards = () => {
 
   const update = useMutation<Board, Error, UpdateBoardParams>({
     mutationFn: ({ id, payload }) => boardsApi.update(id, payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: BOARDS_KEY });
-    },
   });
 
   const remove = useMutation<void, Error, string>({
     mutationFn: (id) => boardsApi.remove(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: BOARDS_KEY }),
   });
 
   return { list, create, update, remove };
