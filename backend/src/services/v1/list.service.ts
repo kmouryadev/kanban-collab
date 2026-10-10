@@ -1,6 +1,7 @@
-import { Types } from "mongoose";
+import mongoose, { Types } from "mongoose";
 import { ListModel, IList } from "../../models/List.model";
 import { BoardModel } from "../../models/Board.model";
+import { findOwnedBoard } from "../../utils/boardAccess";
 import { createError } from "../../utils/error";
 import { HTTP } from "../../constants/httpCodes";
 import { MESSAGES } from "../../constants/messages";
@@ -18,7 +19,7 @@ export const ListService = {
     userId: string,
     title: string
   ): Promise<IList> {
-    const board = await BoardModel.findOne({ _id: boardId, owner: userId });
+    const board = await findOwnedBoard(boardId, userId);
 
     if (!board) {
       throw createError(HTTP.NOT_FOUND, MESSAGES.BOARD.NOT_FOUND);
@@ -59,10 +60,7 @@ export const ListService = {
     const list = await ListModel.findById(listId);
     if (!list) throw createError(HTTP.NOT_FOUND, MESSAGES.LIST.NOT_FOUND);
 
-    const board = await BoardModel.findOne({
-      _id: list.boardId,
-      owner: userId,
-    });
+    const board = await findOwnedBoard(list.boardId.toString(), userId);
     if (!board) throw createError(HTTP.FORBIDDEN, MESSAGES.SERVER.FORBIDDEN);
 
     list.title = title;
@@ -76,24 +74,39 @@ export const ListService = {
     const list = await ListModel.findById(listId);
     if (!list) throw createError(HTTP.NOT_FOUND, MESSAGES.LIST.NOT_FOUND);
 
-    const board = await BoardModel.findOne({
-      _id: list.boardId,
-      owner: userId,
-    });
+    const board = await findOwnedBoard(list.boardId.toString(), userId);
     if (!board) throw createError(HTTP.FORBIDDEN, MESSAGES.SERVER.FORBIDDEN);
     await list.deleteOne();
+
+    board.allowedTransitions = board.allowedTransitions.filter(
+      (t) => t.from.toString() !== listId && t.to.toString() !== listId
+    );
+    await board.save();
+
     emitListDeleted(list.boardId.toString(), listId);
   },
 
   async reorderLists(boardId: string, userId: string, orderedIds: string[]) {
-    const board = await BoardModel.findOne({ _id: boardId, owner: userId });
+    const board = await findOwnedBoard(boardId, userId);
     if (!board) throw createError(HTTP.NOT_FOUND, MESSAGES.BOARD.NOT_FOUND);
 
-    const operations = orderedIds.map((id, index) =>
-      ListModel.updateOne({ _id: id }, { order: index })
-    );
+    const session = await mongoose.startSession();
+    try {
+      await session.withTransaction(async () => {
+        await ListModel.bulkWrite(
+          orderedIds.map((id, index) => ({
+            updateOne: {
+              filter: { _id: id, boardId },
+              update: { order: index },
+            },
+          })),
+          { session }
+        );
+      });
+    } finally {
+      await session.endSession();
+    }
 
-    await Promise.all(operations);
     emitListReordered(boardId, orderedIds);
 
     return { message: MESSAGES.LIST.RE_ORDERED };

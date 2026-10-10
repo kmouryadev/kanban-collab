@@ -17,4 +17,6 @@ const ListSchema = new Schema<IList>(
   { timestamps: true }
 );
 
+ListSchema.index({ boardId: 1, order: 1 });
+
 export const ListModel = model<IList>("List", ListSchema);
