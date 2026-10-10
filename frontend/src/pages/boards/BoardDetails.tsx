@@ -20,6 +20,7 @@ import EditTaskModal from "../../components/molecules/Task/EditTaskModal";
 import DeleteTaskModal from "../../components/molecules/Task/DeleteTaskModal";
 import TaskDetailModal from "../../components/molecules/Task/TaskDetailModal";
 import ShareBoardModal from "../../components/molecules/Board/ShareBoardModal";
+import BoardWorkflowModal from "../../components/molecules/Board/BoardWorkflowModal";
 
 import { useRealtimeBoard } from "../../hooks/useBoardSocket";
 
@@ -28,6 +29,14 @@ import type { Task } from "../../types/tasks";
 
 import { Spinner } from "../../components/ui/spinner";
 import { Button } from "../../components/ui/button";
+import { cn, DEFAULT_BOARD_BACKGROUND, isLightColor } from "../../lib/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../components/ui/select";
 import {
   Plus,
   AlertCircle,
@@ -38,7 +47,12 @@ import {
   ChevronUp,
   Lock,
   ChevronLeft,
+  GitBranch,
+  Filter,
 } from "lucide-react";
+
+const UNASSIGNED_FILTER = "__unassigned__";
+const ALL_FILTER = "__all__";
 
 const BoardDetails = () => {
   const { id: boardId } = useParams<{ id: string }>();
@@ -51,7 +65,9 @@ const BoardDetails = () => {
 
   const [createListOpen, setCreateListOpen] = useState(false);
   const [shareBoardOpen, setShareBoardOpen] = useState(false);
+  const [workflowOpen, setWorkflowOpen] = useState(false);
   const [showMembers, setShowMembers] = useState(false);
+  const [assigneeFilter, setAssigneeFilter] = useState(ALL_FILTER);
 
   const [listToEdit, setListToEdit] = useState<List | null>(null);
   const [listToDelete, setListToDelete] = useState<List | null>(null);
@@ -66,7 +82,7 @@ const BoardDetails = () => {
   const [isMobile, setIsMobile] = useState(false);
   const boardData = board.data?.board;
 
-  useRealtimeBoard(boardId!);
+  useRealtimeBoard(boardId!, currentUser?.id);
 
   const isOwner = useMemo(() => {
     if (!boardData || !currentUser) return false;
@@ -76,6 +92,37 @@ const BoardDetails = () => {
         : boardData.owner._id;
     return currentUser.id === ownerId;
   }, [boardData, currentUser]);
+
+  const boardMembers = useMemo(() => {
+    if (!boardData) return [];
+    return [boardData.owner, ...boardData.members];
+  }, [boardData]);
+
+  const bannerBackground = boardData?.backgroundColor || DEFAULT_BOARD_BACKGROUND;
+  const isLightBanner = isLightColor(bannerBackground);
+  const bannerTextClass = isLightBanner ? "text-gray-900" : "text-white";
+  const bannerSubtextClass = isLightBanner ? "text-gray-700" : "text-white/80";
+  const bannerChromeButtonClass = isLightBanner
+    ? "bg-black/10 hover:bg-black/20 text-gray-900 border-black/10"
+    : "bg-white/10 hover:bg-white/20 text-white border-white/20";
+  const bannerBadgeClass = isLightBanner
+    ? "bg-black/10 text-gray-800"
+    : "bg-white/15 text-white";
+
+  const isFilterActive = assigneeFilter !== ALL_FILTER;
+
+  const filteredTasksByList = useMemo(() => {
+    if (!isFilterActive) return tasksByList;
+
+    const result: Record<string, Task[]> = {};
+    Object.entries(tasksByList).forEach(([listId, tasks]) => {
+      result[listId] = tasks.filter((task) => {
+        if (assigneeFilter === UNASSIGNED_FILTER) return !task.assignee;
+        return task.assignee?._id === assigneeFilter;
+      });
+    });
+    return result;
+  }, [tasksByList, assigneeFilter, isFilterActive]);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -133,92 +180,157 @@ const BoardDetails = () => {
   return (
     <MainLayout>
       <div className="flex flex-col gap-4 mb-6">
-        <div className="flex flex-col gap-4">
-          <Button
-            variant="outline"
-            onClick={() => navigate("/boards")}
-            className="flex items-center gap-2 max-w-40"
-            aria-label="Go back to boards"
-          >
-            <ChevronLeft className="w-4 h-4" />
-            <span className="hidden sm:inline">Back</span>
-          </Button>
-          <div className="flex  flex-col items-center gap-3 flex-1 min-w-0">
-            <div className="flex flex-col ml-0 sm:ml-2 min-w-0">
-              <div className="flex items-center gap-2">
-                <h1 className="text-3xl font-bold gradient-title truncate">
-                  {boardData?.title}
-                </h1>
-                {!isOwner && (
-                  <span className="flex items-center gap-1 text-xs bg-gray-700 text-gray-400 px-2 py-1 rounded-full">
-                    <Lock className="w-3 h-3" />
-                    View Only
-                  </span>
+        <Button
+          variant="outline"
+          onClick={() => navigate("/boards")}
+          className="flex items-center gap-2 max-w-40 border-white/10 text-gray-300 hover:bg-white/5"
+          aria-label="Go back to boards"
+        >
+          <ChevronLeft className="w-4 h-4" />
+          <span className="hidden sm:inline">Back</span>
+        </Button>
+
+        <div
+          className="rounded-2xl p-5 sm:p-6 shadow-lg relative overflow-hidden"
+          style={{ background: bannerBackground }}
+        >
+          <div
+            className={cn(
+              "absolute inset-0",
+              isLightBanner ? "bg-white/5" : "bg-black/10"
+            )}
+          />
+
+          <div className="relative flex flex-col gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className={cn("text-2xl sm:text-3xl font-bold truncate", bannerTextClass)}>
+                    {boardData?.title}
+                  </h1>
+                  {!isOwner && (
+                    <span
+                      className={cn(
+                        "flex items-center gap-1 text-xs px-2 py-1 rounded-full",
+                        bannerBadgeClass
+                      )}
+                    >
+                      <Lock className="w-3 h-3" />
+                      Member
+                    </span>
+                  )}
+                </div>
+
+                {boardData?.description && (
+                  <p className={cn("text-sm mt-1.5 line-clamp-2", bannerSubtextClass)}>
+                    {boardData.description}
+                  </p>
                 )}
               </div>
 
-              {boardData?.description && (
-                <p className="text-gray-400 text-sm mt-1 line-clamp-2">
-                  {boardData.description}
-                </p>
-              )}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
-            {memberCount > 0 && (
-              <Button
-                variant="outline"
-                onClick={() => setShowMembers(!showMembers)}
-                className="flex-1 border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white"
-              >
-                <Users className="w-4 h-4 mr-2" />
-                <span className="hidden sm:inline">
-                  {memberCount} {memberCount === 1 ? "Member" : "Members"}
-                </span>
-                <span className="sm:hidden">{memberCount}</span>
-                {showMembers ? (
-                  <ChevronUp className="w-4 h-4 ml-1" />
-                ) : (
-                  <ChevronDown className="w-4 h-4 ml-1" />
+              <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
+                {lists.length > 0 && (
+                  <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
+                    <SelectTrigger
+                      className={cn(
+                        "w-auto min-w-[140px] border",
+                        bannerChromeButtonClass
+                      )}
+                    >
+                      <Filter className="w-4 h-4 mr-2 shrink-0" />
+                      <SelectValue placeholder="Filter" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-800 border-gray-700 text-gray-200">
+                      <SelectItem value={ALL_FILTER}>All Tasks</SelectItem>
+                      <SelectItem value={UNASSIGNED_FILTER}>Unassigned</SelectItem>
+                      {currentUser && (
+                        <SelectItem value={currentUser.id}>
+                          Assigned to Me
+                        </SelectItem>
+                      )}
+                      {boardMembers
+                        .filter((m) => m._id !== currentUser?.id)
+                        .map((member) => (
+                          <SelectItem key={member._id} value={member._id}>
+                            {member.name}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
                 )}
-              </Button>
-            )}
 
-            {isOwner && (
-              <ShareBoardModal
-                boardId={boardId!}
-                open={shareBoardOpen}
-                onOpenChange={setShareBoardOpen}
-                trigger={
+                {memberCount > 0 && (
                   <Button
-                    variant="outline"
-                    onClick={() => setShareBoardOpen(true)}
-                    className="flex-1 border-indigo-600 text-indigo-400 hover:bg-indigo-600 hover:text-white"
+                    onClick={() => setShowMembers(!showMembers)}
+                    className={cn("border", bannerChromeButtonClass)}
                   >
-                    <UserPlus className="w-4 h-4 sm:mr-2" />
-                    <span className="hidden sm:inline">Share</span>
+                    <Users className="w-4 h-4 mr-2" />
+                    <span className="hidden sm:inline">
+                      {memberCount} {memberCount === 1 ? "Member" : "Members"}
+                    </span>
+                    <span className="sm:hidden">{memberCount}</span>
+                    {showMembers ? (
+                      <ChevronUp className="w-4 h-4 ml-1" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 ml-1" />
+                    )}
                   </Button>
-                }
-              />
-            )}
+                )}
 
-            <CreateListModal
-              boardId={boardId!}
-              open={createListOpen}
-              onOpenChange={setCreateListOpen}
-              trigger={
-                isOwner && (
-                  <Button
-                    onClick={() => setCreateListOpen(true)}
-                    className="flex-1  bg-indigo-600 hover:bg-indigo-700 text-white"
-                  >
-                    <Plus className="w-4 h-4 sm:mr-2" />
-                    <span className="hidden sm:inline">Create List</span>
-                  </Button>
-                )
-              }
-            />
+                {isOwner && (
+                  <ShareBoardModal
+                    boardId={boardId!}
+                    open={shareBoardOpen}
+                    onOpenChange={setShareBoardOpen}
+                    trigger={
+                      <Button
+                        onClick={() => setShareBoardOpen(true)}
+                        className={cn("border", bannerChromeButtonClass)}
+                      >
+                        <UserPlus className="w-4 h-4 sm:mr-2" />
+                        <span className="hidden sm:inline">Share</span>
+                      </Button>
+                    }
+                  />
+                )}
+
+                {isOwner && lists.length > 1 && (
+                  <BoardWorkflowModal
+                    boardId={boardId!}
+                    lists={lists}
+                    allowedTransitions={boardData?.allowedTransitions ?? []}
+                    open={workflowOpen}
+                    onOpenChange={setWorkflowOpen}
+                    trigger={
+                      <Button
+                        onClick={() => setWorkflowOpen(true)}
+                        className={cn("border", bannerChromeButtonClass)}
+                      >
+                        <GitBranch className="w-4 h-4 sm:mr-2" />
+                        <span className="hidden sm:inline">Workflow</span>
+                      </Button>
+                    }
+                  />
+                )}
+
+                <CreateListModal
+                  boardId={boardId!}
+                  open={createListOpen}
+                  onOpenChange={setCreateListOpen}
+                  trigger={
+                    isOwner && (
+                      <Button
+                        onClick={() => setCreateListOpen(true)}
+                        className="bg-white text-gray-900 hover:bg-gray-100 font-semibold shadow-sm"
+                      >
+                        <Plus className="w-4 h-4 sm:mr-2" />
+                        <span className="hidden sm:inline">Create List</span>
+                      </Button>
+                    )
+                  }
+                />
+              </div>
+            </div>
           </div>
         </div>
 
@@ -229,6 +341,13 @@ const BoardDetails = () => {
               currentUserId={currentUser?.id}
             />
           </div>
+        )}
+
+        {isFilterActive && (
+          <p className="text-xs text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-md px-3 py-2">
+            Filtered view — drag-and-drop is disabled while a filter is
+            active. Clear the filter to reorder or move tasks.
+          </p>
         )}
       </div>
 
@@ -254,9 +373,12 @@ const BoardDetails = () => {
         <BoardDndContext
           boardId={boardId!}
           lists={lists}
-          tasksByList={tasksByList}
+          tasksByList={filteredTasksByList}
+          boardMembers={boardMembers}
           isMobile={isMobile}
           isOwner={isOwner}
+          dndDisabled={isFilterActive}
+          allowedTransitions={boardData?.allowedTransitions ?? []}
           onOpenListEdit={(list) => setListToEdit(list)}
           onOpenListDelete={(list) => setListToDelete(list)}
           onOpenTaskCreate={(list) => setTaskToCreateInList(list)}
@@ -312,7 +434,8 @@ const BoardDetails = () => {
       {taskToView && (
         <TaskDetailModal
           task={taskToView}
-          isOwner={isOwner}
+          boardId={boardId!}
+          boardMembers={boardMembers}
           open={!!taskToView}
           onOpenChange={(value) => !value && setTaskToView(null)}
           onEdit={(task) => {

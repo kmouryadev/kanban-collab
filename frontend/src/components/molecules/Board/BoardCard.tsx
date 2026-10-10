@@ -3,6 +3,7 @@ import { Pencil, Trash2, Calendar, Clock } from "lucide-react";
 import type { Board } from "../../../types/board";
 import { Button } from "../../ui/button";
 import { format } from "date-fns";
+import { DEFAULT_BOARD_BACKGROUND, isLightColor } from "../../../lib/utils";
 
 interface Props {
   board: Board;
@@ -44,32 +45,8 @@ const BoardCard: FC<Props> = ({
     return text.substring(0, maxLength) + "...";
   };
 
-  const getColorBrightness = (color: string): number => {
-    if (color.startsWith("#")) {
-      const hex = color.replace("#", "");
-      const r = parseInt(hex.substring(0, 2), 16);
-      const g = parseInt(hex.substring(2, 4), 16);
-      const b = parseInt(hex.substring(4, 6), 16);
-      return (r * 299 + g * 587 + b * 114) / 1000;
-    }
-
-    if (color.startsWith("rgb")) {
-      const match = color.match(/\d+/g);
-      if (match && match.length >= 3) {
-        const r = parseInt(match[0]);
-        const g = parseInt(match[1]);
-        const b = parseInt(match[2]);
-        return (r * 299 + g * 587 + b * 114) / 1000;
-      }
-    }
-
-    return 128;
-  };
-
-  const backgroundColor =
-    board.backgroundColor ||
-    "linear-gradient(135deg, #667eea 0%, #764ba2 100%)";
-  const isLightBackground = getColorBrightness(backgroundColor) > 128;
+  const backgroundColor = board.backgroundColor || DEFAULT_BOARD_BACKGROUND;
+  const isLightBackground = isLightColor(backgroundColor);
 
   const editButtonClass = isLightBackground
     ? "flex-1 bg-black/15 hover:bg-black/25 text-gray-900 border-0 backdrop-blur-sm font-medium"

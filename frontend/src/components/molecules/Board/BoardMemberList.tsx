@@ -1,4 +1,7 @@
-import { Users, Crown } from "lucide-react";
+import { useState } from "react";
+import { Users, Crown, UserMinus } from "lucide-react";
+import RemoveMemberDialog from "./RemoveMemberDialog";
+import { getAvatarColor, getInitials } from "../../../lib/utils";
 
 interface User {
   _id: string;
@@ -26,40 +29,17 @@ const BoardMembersList: React.FC<BoardMembersListProps> = ({
   const ownerId =
     typeof board.owner === "string" ? board.owner : board.owner?._id || "";
 
+  const isCurrentUserOwner = !!currentUserId && currentUserId === ownerId;
+
+  const [memberToRemove, setMemberToRemove] = useState<User | null>(null);
+
   const memberUsers: User[] = board.members
     .filter((member): member is User => typeof member === "object" && member !== null)
     .filter((member) => member._id && member.name && member.email);
 
-  const getInitials = (name: string = "") =>
-    name
-      .trim()
-      .split(/\s+/)
-      .map((value) => value[0]?.toUpperCase() ?? "")
-      .join("")
-      .slice(0, 2);
-
-  const getColorFromString = (str: string = "default") => {
-    const colors = [
-      "bg-blue-500",
-      "bg-green-500",
-      "bg-purple-500",
-      "bg-pink-500",
-      "bg-yellow-500",
-      "bg-red-500",
-      "bg-indigo-500",
-      "bg-teal-500",
-    ];
-
-    const index =
-      str.split("").reduce((sum, char) => sum + char.charCodeAt(0), 0) %
-      colors.length;
-
-    return colors[index];
-  };
-
   if (memberUsers.length === 0) {
     return (
-      <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+      <div className="bg-slate-800/60 rounded-2xl p-4 border border-white/10">
         <div className="flex items-center gap-2 mb-3">
           <Users className="w-4 h-4 text-indigo-400" />
           <h3 className="text-sm font-semibold text-gray-300">
@@ -74,7 +54,7 @@ const BoardMembersList: React.FC<BoardMembersListProps> = ({
   }
 
   return (
-    <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+    <div className="bg-slate-800/60 rounded-2xl p-4 border border-white/10">
       <div className="flex items-center gap-2 mb-3">
         <Users className="w-4 h-4 text-indigo-400" />
         <h3 className="text-sm font-semibold text-gray-300">
@@ -90,15 +70,15 @@ const BoardMembersList: React.FC<BoardMembersListProps> = ({
           return (
             <div
               key={member._id}
-              className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
+              className={`flex items-center gap-3 p-3 rounded-xl transition-colors ${
                 isCurrentUser
                   ? "bg-indigo-500/10 border border-indigo-500/30"
-                  : "bg-gray-900/50 hover:bg-gray-900"
+                  : "bg-slate-900/60 hover:bg-slate-900 border border-transparent"
               }`}
             >
               <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-semibold flex-shrink-0 ${getColorFromString(
-                  member.email
+                className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-semibold flex-shrink-0 ${getAvatarColor(
+                  member._id
                 )}`}
               >
                 {getInitials(member.name)}
@@ -131,6 +111,17 @@ const BoardMembersList: React.FC<BoardMembersListProps> = ({
                   {isOwner ? "Owner" : "Member"}
                 </span>
               </div>
+
+              {isCurrentUserOwner && !isOwner && (
+                <button
+                  type="button"
+                  onClick={() => setMemberToRemove(member)}
+                  aria-label={`Remove ${member.name}`}
+                  className="flex-shrink-0 p-1.5 rounded-md text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                >
+                  <UserMinus className="w-4 h-4" />
+                </button>
+              )}
             </div>
           );
         })}
@@ -141,6 +132,13 @@ const BoardMembersList: React.FC<BoardMembersListProps> = ({
           Share this board to collaborate with your team
         </p>
       )}
+
+      <RemoveMemberDialog
+        boardId={board._id}
+        member={memberToRemove}
+        open={!!memberToRemove}
+        onOpenChange={(open) => !open && setMemberToRemove(null)}
+      />
     </div>
   );
 };

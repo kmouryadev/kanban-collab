@@ -8,6 +8,8 @@ import {
   Trash2,
   MoveRight,
   GripVertical,
+  UserPlus,
+  Flag,
 } from "lucide-react";
 
 import type { Task } from "../../../types/tasks";
@@ -22,37 +24,55 @@ import {
   DropdownMenuLabel,
 } from "../../ui/dropdown-menu";
 
-import { cn } from "../../../lib/utils";
+import { cn, getAvatarColor, getInitials } from "../../../lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import { TASKS_QUERY_KEY } from "../../../hooks/useTasks";
 import type { TasksResponse } from "../../../types/api";
 import { useMoveTask } from "../../../hooks/useMoveTasks";
+import { useAssignTask } from "../../../hooks/useAssignTask";
+import { useAuthStore } from "../../../store/auth.store";
 
 const makeTaskId = (taskId: string, listId: string) =>
   `task:${taskId}:${listId}`;
 
+type BoardMember = { _id: string; name: string; email: string };
+
 interface Props {
   task: Task;
+  boardMembers?: BoardMember[];
   isMobile?: boolean;
+  dndDisabled?: boolean;
   allLists: List[];
   boardId: string;
-  isOwner: boolean;
   onClick: (task: Task) => void;
   onEdit: (task: Task) => void;
   onDelete: (task: Task) => void;
 }
 
 const PRIORITY = {
-  low: { color: "bg-blue-500", label: "Low" },
-  medium: { color: "bg-yellow-500", label: "Medium" },
-  high: { color: "bg-red-500", label: "High" },
+  low: {
+    label: "Low",
+    border: "border-l-blue-500",
+    chip: "bg-blue-500/10 text-blue-300 border-blue-500/30",
+  },
+  medium: {
+    label: "Medium",
+    border: "border-l-yellow-500",
+    chip: "bg-yellow-500/10 text-yellow-300 border-yellow-500/30",
+  },
+  high: {
+    label: "High",
+    border: "border-l-red-500",
+    chip: "bg-red-500/10 text-red-300 border-red-500/30",
+  },
 } as const;
 
 const TaskCard: React.FC<Props> = ({
   task,
+  boardMembers = [],
   isMobile = false,
+  dndDisabled = false,
   allLists,
-  isOwner,
   boardId,
   onClick,
   onEdit,
@@ -62,11 +82,17 @@ const TaskCard: React.FC<Props> = ({
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
       id: makeTaskId(task._id, task.listId),
-      disabled: isMobile,
+      disabled: isMobile || dndDisabled,
     });
   const moveTask = useMoveTask();
+  const { assign } = useAssignTask(boardId);
+  const currentUser = useAuthStore((state) => state.user);
   const priority = task.priority ?? "medium";
   const priorityInfo = useMemo(() => PRIORITY[priority], [priority]);
+
+  const handleAssign = (assigneeId: string | null) => {
+    assign.mutate({ taskId: task._id, assigneeId });
+  };
 
   const handleMoveToList = (newListId: string) => {
     const oldListId = task.listId;
@@ -111,14 +137,15 @@ const TaskCard: React.FC<Props> = ({
         transition,
       }}
       className={cn(
-        "p-4 rounded-lg bg-slate-800 border border-white/10 shadow-sm",
-        "cursor-pointer select-none hover:shadow-lg transition-all"
+        "p-3.5 rounded-xl bg-slate-800 border border-white/10 border-l-4 shadow-sm",
+        "cursor-pointer select-none hover:shadow-lg hover:-translate-y-0.5 transition-all",
+        priorityInfo.border
       )}
       onClick={() => onClick(task)}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-start gap-3 flex-1">
-          {!isMobile && isOwner && (
+          {!isMobile && (
             <Button
               {...listeners}
               {...attributes}
@@ -138,20 +165,100 @@ const TaskCard: React.FC<Props> = ({
                 {task.description}
               </p>
             )}
-            <div className="flex items-center gap-2 mt-2">
+            <div className="flex items-center gap-2 mt-2.5 flex-wrap">
               <span
-                className={`w-2 h-2 rounded-full ${priorityInfo.color}`}
-                title={`Priority: ${priorityInfo.label}`}
-              ></span>
-              <span className="text-xs text-gray-500">
+                className={cn(
+                  "flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-medium",
+                  priorityInfo.chip
+                )}
+              >
+                <Flag className="w-3 h-3" />
                 {priorityInfo.label}
               </span>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={(event) => event.stopPropagation()}
+                    className={cn(
+                      "flex items-center gap-1.5 text-xs pl-0.5 pr-2 py-0.5 rounded-full border transition-colors",
+                      task.assignee
+                        ? "bg-slate-900 border-white/10 text-gray-200 hover:bg-slate-700"
+                        : "bg-slate-900 border-gray-700 text-gray-500 hover:text-gray-300"
+                    )}
+                  >
+                    {task.assignee ? (
+                      <span
+                        className={cn(
+                          "w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-semibold text-white shrink-0",
+                          getAvatarColor(task.assignee._id)
+                        )}
+                      >
+                        {getInitials(task.assignee.name)}
+                      </span>
+                    ) : (
+                      <UserPlus className="w-3.5 h-3.5 ml-1" />
+                    )}
+                    {task.assignee ? task.assignee.name : "Unassigned"}
+                  </button>
+                </DropdownMenuTrigger>
+
+                <DropdownMenuContent
+                  align="start"
+                  className="bg-slate-900 border-white/10 w-48"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  {currentUser && task.assignee?._id !== currentUser.id && (
+                    <DropdownMenuItem
+                      onClick={() => handleAssign(currentUser.id)}
+                      className="text-gray-200 hover:bg-white/5 cursor-pointer"
+                    >
+                      Assign to me
+                    </DropdownMenuItem>
+                  )}
+
+                  {task.assignee && (
+                    <DropdownMenuItem
+                      onClick={() => handleAssign(null)}
+                      className="text-gray-200 hover:bg-white/5 cursor-pointer"
+                    >
+                      Unassign
+                    </DropdownMenuItem>
+                  )}
+
+                  {boardMembers.length > 0 && (
+                    <>
+                      <DropdownMenuSeparator className="bg-white/10" />
+                      <DropdownMenuLabel className="text-gray-400 text-xs">
+                        Assign to
+                      </DropdownMenuLabel>
+                      {boardMembers
+                        .filter((m) => m._id !== task.assignee?._id)
+                        .map((member) => (
+                          <DropdownMenuItem
+                            key={member._id}
+                            onClick={() => handleAssign(member._id)}
+                            className="text-gray-200 hover:bg-white/5 cursor-pointer"
+                          >
+                            {member.name}
+                          </DropdownMenuItem>
+                        ))}
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
+
+            {task.lastUpdatedBy && (
+              <p className="text-xs text-gray-600 mt-1.5">
+                Last updated by {task.lastUpdatedBy.name}
+              </p>
+            )}
           </div>
         </div>
 
-        {isOwner && (
-          <div className="flex items-center gap-2 ml-2">
+        <div className="flex items-center gap-2 ml-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -217,7 +324,6 @@ const TaskCard: React.FC<Props> = ({
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-        )}
       </div>
     </div>
   );

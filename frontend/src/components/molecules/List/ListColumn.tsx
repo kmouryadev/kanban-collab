@@ -22,15 +22,20 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../../ui/dropdown-menu";
+import { getAvatarColor } from "../../../lib/utils";
 
 const makeListId = (listId: string) => `list:${listId}`;
 const makeTaskId = (taskId: string, listId: string) =>
   `task:${taskId}:${listId}`;
 
+type BoardMember = { _id: string; name: string; email: string };
+
 interface Props {
   list: List;
   tasks: Task[];
+  boardMembers?: BoardMember[];
   isMobile: boolean;
+  dndDisabled?: boolean;
   allLists: List[];
   boardId: string;
   isOwner?: boolean;
@@ -46,7 +51,9 @@ interface Props {
 const ListColumn: React.FC<Props> = ({
   list,
   tasks,
+  boardMembers = [],
   isMobile = false,
+  dndDisabled = false,
   allLists,
   boardId,
   isOwner,
@@ -69,6 +76,7 @@ const ListColumn: React.FC<Props> = ({
   });
 
   const taskCount = useMemo(() => tasks.length, [tasks]);
+  const accentColor = useMemo(() => getAvatarColor(list._id), [list._id]);
 
   return (
     <div
@@ -78,29 +86,31 @@ const ListColumn: React.FC<Props> = ({
         transition,
       }}
       className={`
-        ${isMobile ? "w-full mb-4" : "w-[320px] shrink-0"} 
-        rounded-xl bg-slate-900 border border-white/10 
-        p-4 shadow-md flex flex-col
+        ${isMobile ? "w-full mb-4" : "w-[320px] shrink-0"}
+        rounded-2xl bg-slate-800/60 border border-white/10
+        shadow-md flex flex-col overflow-hidden
         ${isMobile ? "min-h-[200px]" : "h-[calc(100vh-200px)]"}
       `}
     >
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
+      <div className={`h-1.5 ${accentColor}`} />
+
+      <div className="flex items-center justify-between px-4 pt-3 pb-4">
+        <div className="flex items-center gap-2 min-w-0">
           {!isMobile && isOwner && (
             <Button
               size="icon"
               variant="ghost"
               {...listeners}
               {...attributes}
-              className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-white hover:bg-white/10"
+              className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-white hover:bg-white/10 shrink-0"
             >
               <GripVertical className="w-4 h-4" />
             </Button>
           )}
 
-          <h3 className="font-semibold text-white text-lg">{list.title}</h3>
+          <h3 className="font-semibold text-white text-base truncate">{list.title}</h3>
 
-          <span className="text-xs px-2 py-0.5 bg-slate-800 rounded-full text-gray-400">
+          <span className="text-xs px-2 py-0.5 bg-slate-900 rounded-full text-gray-400 shrink-0">
             {taskCount}
           </span>
         </div>
@@ -108,7 +118,7 @@ const ListColumn: React.FC<Props> = ({
         {isOwner && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button size="icon" variant="ghost">
+              <Button size="icon" variant="ghost" className="shrink-0">
                 <MoreVertical className="w-4 h-4 text-gray-300" />
               </Button>
             </DropdownMenuTrigger>
@@ -132,7 +142,7 @@ const ListColumn: React.FC<Props> = ({
         )}
       </div>
 
-      <div className="flex-1 overflow-hidden" ref={setDroppableRef}>
+      <div className="flex-1 overflow-hidden px-3" ref={setDroppableRef}>
         <SortableContext
           items={tasks.map((t) => makeTaskId(t._id, list._id))}
           strategy={verticalListSortingStrategy}
@@ -153,8 +163,9 @@ const ListColumn: React.FC<Props> = ({
                 <TaskCard
                   key={task._id}
                   task={task}
+                  boardMembers={boardMembers}
                   isMobile={isMobile}
-                  isOwner={!!isOwner}
+                  dndDisabled={dndDisabled}
                   allLists={allLists}
                   boardId={boardId}
                   onClick={onTaskClick}
@@ -167,15 +178,16 @@ const ListColumn: React.FC<Props> = ({
         </SortableContext>
       </div>
 
-      {isOwner && (
+      <div className="p-3 pt-2">
         <Button
-          className="w-full mt-4 bg-indigo-600 text-white hover:bg-indigo-700"
+          variant="ghost"
+          className="w-full justify-start text-gray-400 hover:text-white hover:bg-white/10 font-medium"
           onClick={() => onAddTask(list)}
         >
           <Plus className="w-4 h-4 mr-2" />
-          Add Task
+          Add a task
         </Button>
-      )}
+      </div>
     </div>
   );
 };
