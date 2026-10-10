@@ -1,5 +1,6 @@
 import { Server } from "socket.io";
 import type { Server as HttpServer } from "http";
+import jwt from "jsonwebtoken";
 
 import type {
   ClientToServerEvents,
@@ -9,6 +10,12 @@ import type {
 } from "./event";
 
 import { BoardModel } from "../models/Board.model";
+
+interface JwtPayload {
+  id: string;
+  email?: string;
+  name?: string;
+}
 
 export let io: Server<
   ClientToServerEvents,
@@ -20,7 +27,7 @@ export let io: Server<
 export const initSocket = (server: HttpServer) => {
   io = new Server(server, {
     cors: {
-      origin: "*",
+      origin: process.env.FRONTEND_URL || "http://localhost:5173",
       methods: ["GET", "POST", "PATCH", "DELETE"],
     },
   });
@@ -29,14 +36,15 @@ export const initSocket = (server: HttpServer) => {
     if (!token) return next(new Error("No token"));
 
     try {
-      const decoded = JSON.parse(
-        Buffer.from(token.split(".")[1], "base64").toString()
-      );
+      const decoded = jwt.verify(
+        token,
+        process.env.JWT_SECRET as string
+      ) as JwtPayload;
 
       socket.data.user = {
         _id: decoded.id,
-        email: decoded.email,
-        name: decoded.name,
+        email: decoded.email ?? "",
+        name: decoded.name ?? "",
       };
 
       next();

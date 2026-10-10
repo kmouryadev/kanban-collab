@@ -109,7 +109,7 @@ Install:
 
 * Node.js (v18+)
 * npm
-* MongoDB (local or Atlas)
+* MongoDB running as a **replica set** (MongoDB Atlas, including the free M0 tier, satisfies this automatically). List/task reordering and moving use multi-document transactions, which standalone `mongod` instances cannot run — if using local MongoDB, initialize it as a single-node replica set (`rs.initiate()`).
 
 ---
 
@@ -128,6 +128,7 @@ npm install
 PORT=5000
 MONGO_URI=<your_mongodb_connection_string>
 JWT_SECRET=<your_secret>
+FRONTEND_URL=http://localhost:5173
 ```
 
 ### Run backend

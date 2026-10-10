@@ -12,6 +12,10 @@ const errorMiddleware = (
 ) => {
   const status = err.statusCode || 500;
 
+  if (status >= 500) {
+    console.error(err);
+  }
+
   response.status(status).json({
     message: err.message || "Internal Server Error"
   });

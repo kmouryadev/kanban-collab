@@ -46,7 +46,7 @@ const requireAuth = async (req: Request, res: Response, next: NextFunction) => {
 
     return next();
   } catch (err: unknown) {
-    if (err?.name === "TokenExpiredError") {
+    if (err instanceof Error && err.name === "TokenExpiredError") {
       return next(createError(HTTP.UNAUTHORIZED, MESSAGES.USER.TOKEN_EXPIRED));
     }
 
