@@ -115,4 +115,60 @@ router.patch("/:id", BoardController.updateBoard);
 router.delete("/:id", BoardController.deleteBoard);
 router.post("/:id/share", BoardController.shareBoard);
 
+/**
+ * @openapi
+ * /v1/boards/{id}/members/{memberId}:
+ *   delete:
+ *     summary: Remove a member from the board (owner only)
+ *     tags:
+ *       - Boards
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *       - name: memberId
+ *         in: path
+ *         required: true
+ *     responses:
+ *       200:
+ *         description: Member removed
+ */
+router.delete("/:id/members/:memberId", BoardController.removeMember);
+
+/**
+ * @openapi
+ * /v1/boards/{id}/workflow:
+ *   patch:
+ *     summary: Replace the board's allowed list-to-list transitions (owner only)
+ *     tags:
+ *       - Boards
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               transitions:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     from:
+ *                       type: string
+ *                     to:
+ *                       type: string
+ *     responses:
+ *       200:
+ *         description: Workflow updated
+ */
+router.patch("/:id/workflow", BoardController.updateWorkflow);
+
 export default router;

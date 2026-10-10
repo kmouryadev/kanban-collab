@@ -1,4 +1,4 @@
-import type { Board } from "./types/boards";
+import type { Board, BoardTransition } from "./types/boards";
 import type { List } from "./types/list";
 import type { Task } from "./types/task";
 
@@ -9,6 +9,11 @@ export interface ServerToClientEvents {
     userId: string;
     email: string;
     name: string;
+  }) => void;
+  "board:memberRemoved": (data: { boardId: string; memberId: string }) => void;
+  "board:workflowUpdated": (data: {
+    boardId: string;
+    allowedTransitions: BoardTransition[];
   }) => void;
 
   "list:created": (data: { boardId: string; list: List }) => void;

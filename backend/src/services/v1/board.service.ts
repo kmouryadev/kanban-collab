@@ -1,5 +1,6 @@
 import { Types } from "mongoose";
 import { BoardModel } from "../../models/Board.model";
+import { ListModel } from "../../models/List.model";
 import { HTTP } from "../../constants/httpCodes";
 import { MESSAGES } from "../../constants/messages";
 
@@ -7,6 +8,8 @@ import {
   emitBoardUpdated,
   emitBoardDeleted,
   emitBoardMemberAdded,
+  emitBoardMemberRemoved,
+  emitBoardWorkflowUpdated,
 } from "../../socket/emit/boards";
 import UserModel from "../../models/User.model";
 
@@ -212,5 +215,101 @@ export const shareBoard = async (
   return {
     status: HTTP.OK,
     data: memberInfo,
+  };
+};
+
+export const removeMember = async (
+  boardId: string,
+  ownerId: string,
+  memberId: string
+) => {
+  if (!Types.ObjectId.isValid(boardId) || !Types.ObjectId.isValid(memberId)) {
+    return { status: HTTP.BAD_REQUEST, error: MESSAGES.BOARD.INVALID_ID };
+  }
+
+  const board = await BoardModel.findById(boardId);
+  if (!board) return { status: HTTP.NOT_FOUND, error: MESSAGES.BOARD.NOT_FOUND };
+
+  if (board.owner.toString() !== ownerId.toString()) {
+    return {
+      status: HTTP.FORBIDDEN,
+      error: MESSAGES.BOARD.REMOVE_MEMBER_FORBIDDEN,
+    };
+  }
+
+  if (memberId === ownerId.toString()) {
+    return {
+      status: HTTP.BAD_REQUEST,
+      error: MESSAGES.BOARD.CANNOT_REMOVE_OWNER,
+    };
+  }
+
+  const isMember = board.members.some((m) => m.toString() === memberId);
+  if (!isMember) {
+    return { status: HTTP.NOT_FOUND, error: MESSAGES.BOARD.MEMBER_NOT_FOUND };
+  }
+
+  board.members = board.members.filter((m) => m.toString() !== memberId);
+  await board.save();
+
+  emitBoardMemberRemoved(boardId, memberId);
+
+  return {
+    status: HTTP.OK,
+    message: MESSAGES.BOARD.DELETE_SUCCESS,
+  };
+};
+
+export const updateWorkflow = async (
+  boardId: string,
+  ownerId: string,
+  transitions: { from: string; to: string }[]
+) => {
+  if (!Types.ObjectId.isValid(boardId)) {
+    return { status: HTTP.BAD_REQUEST, error: MESSAGES.BOARD.INVALID_ID };
+  }
+
+  const board = await BoardModel.findById(boardId);
+  if (!board) return { status: HTTP.NOT_FOUND, error: MESSAGES.BOARD.NOT_FOUND };
+
+  if (board.owner.toString() !== ownerId.toString()) {
+    return {
+      status: HTTP.FORBIDDEN,
+      error: MESSAGES.BOARD.WORKFLOW_UPDATE_FORBIDDEN,
+    };
+  }
+
+  const listIds = new Set(
+    (await ListModel.find({ boardId }).select("_id")).map((l) =>
+      l._id.toString()
+    )
+  );
+
+  const isValid = transitions.every(
+    (t) =>
+      Types.ObjectId.isValid(t.from) &&
+      Types.ObjectId.isValid(t.to) &&
+      listIds.has(t.from) &&
+      listIds.has(t.to)
+  );
+
+  if (!isValid) {
+    return {
+      status: HTTP.BAD_REQUEST,
+      error: MESSAGES.BOARD.WORKFLOW_INVALID_LIST,
+    };
+  }
+
+  board.allowedTransitions = transitions.map((t) => ({
+    from: new Types.ObjectId(t.from),
+    to: new Types.ObjectId(t.to),
+  }));
+
+  await board.save();
+  emitBoardWorkflowUpdated(boardId, board.allowedTransitions);
+
+  return {
+    status: HTTP.OK,
+    data: board.allowedTransitions,
   };
 };

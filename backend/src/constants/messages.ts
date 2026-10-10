@@ -19,7 +19,12 @@ export const MESSAGES = {
     DELETE_FORBIDDEN: "You are not allowed to delete this board",
     SHARE_FORBIDDEN: "Only owner can share board",
     SHARED_OWNER_ACCESS: "Owner already has access",
-    SHARED_MEMBER_ACCESS:"User already a member"
+    SHARED_MEMBER_ACCESS:"User already a member",
+    WORKFLOW_UPDATE_FORBIDDEN: "Only the owner can update workflow rules",
+    WORKFLOW_INVALID_LIST: "Workflow transitions must reference lists on this board",
+    REMOVE_MEMBER_FORBIDDEN: "Only the owner can remove members",
+    MEMBER_NOT_FOUND: "User is not a member of this board",
+    CANNOT_REMOVE_OWNER: "The board owner cannot be removed",
   },
 
   LIST: {
@@ -37,6 +42,8 @@ export const MESSAGES = {
     DELETED: "Task deleted",
     MOVED: "Task moved successfully",
     RE_ORDERED: "Tasks reordered",
+    TRANSITION_FORBIDDEN: "This move isn't allowed by the board's workflow rules",
+    INVALID_ASSIGNEE: "Assignee must be a member of this board",
   },
 
   SERVER: {

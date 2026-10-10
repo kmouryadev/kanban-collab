@@ -7,6 +7,8 @@ import {
   getBoard,
   deleteBoard,
   shareBoard,
+  removeMember,
+  updateWorkflow,
 } from "../../services/v1/board.service";
 import { MESSAGES } from "../../constants/messages";
 
@@ -97,4 +99,40 @@ export const BoardController = {
     });
     return;
   }),
+
+  removeMember: asyncHandler(async (request: Request, response: Response) => {
+    const { id, memberId } = request.params;
+
+    const result = await removeMember(id, getUserId(request), memberId);
+
+    if (result.error) {
+      response.status(result.status).json({ message: result.error });
+      return;
+    }
+
+    response.status(result.status).json({ message: result.message });
+  }),
+
+  updateWorkflow: asyncHandler(
+    async (request: Request, response: Response) => {
+      const { id } = request.params;
+      const { transitions } = request.body;
+
+      const result = await updateWorkflow(
+        id,
+        getUserId(request),
+        transitions ?? []
+      );
+
+      if (result.error) {
+        response.status(result.status).json({ message: result.error });
+        return;
+      }
+
+      response.status(result.status).json({
+        allowedTransitions: result.data,
+        message: "Workflow updated successfully",
+      });
+    }
+  ),
 };

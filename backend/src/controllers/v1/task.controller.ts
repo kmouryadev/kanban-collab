@@ -78,4 +78,17 @@ export const TaskController = {
 
     response.status(HTTP.OK).json(result);
   }),
+
+  assignTask: asyncHandler(async (request: Request, response: Response) => {
+    const { taskId } = request.params;
+    const { assigneeId } = request.body;
+
+    const task = await TaskService.assignTask(
+      taskId,
+      getUserId(request),
+      assigneeId ?? null
+    );
+
+    response.status(HTTP.OK).json(task);
+  }),
 };

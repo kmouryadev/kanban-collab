@@ -9,6 +9,8 @@ export interface ITask extends Document {
   listId: Types.ObjectId;
   order: number;
   priority: TaskPriority;
+  assignee?: Types.ObjectId | null;
+  lastUpdatedBy?: Types.ObjectId | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -25,8 +27,12 @@ const TaskSchema = new Schema<ITask>(
       enum: ["low", "medium", "high"],
       default: "medium",
     },
+    assignee: { type: Schema.Types.ObjectId, ref: "User", default: null },
+    lastUpdatedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
   },
   { timestamps: true }
 );
+
+TaskSchema.index({ boardId: 1, listId: 1, order: 1 });
 
 export const TaskModel = model<ITask>("Task", TaskSchema);

@@ -1,7 +1,8 @@
-import { Types } from "mongoose";
+import mongoose, { Types } from "mongoose";
 import { TaskModel, ITask, TaskPriority } from "../../models/Task.model";
 import { ListModel } from "../../models/List.model";
 import { BoardModel } from "../../models/Board.model";
+import { findAccessibleBoard } from "../../utils/boardAccess";
 import { createError } from "../../utils/error";
 import { HTTP } from "../../constants/httpCodes";
 import { MESSAGES } from "../../constants/messages";
@@ -23,7 +24,7 @@ export const TaskService = {
     description?: string,
     priority?: TaskPriority
   ): Promise<ITask> {
-    const board = await BoardModel.findOne({ _id: boardId, owner: userId });
+    const board = await findAccessibleBoard(boardId, userId);
     if (!board) throw createError(HTTP.NOT_FOUND, MESSAGES.BOARD.NOT_FOUND);
 
     const list = await ListModel.findOne({ _id: listId, boardId });
@@ -38,6 +39,7 @@ export const TaskService = {
       boardId: new Types.ObjectId(boardId),
       listId: new Types.ObjectId(listId),
       order: count,
+      lastUpdatedBy: new Types.ObjectId(userId),
     });
     emitTaskCreated(boardId, listId, task);
 
@@ -58,7 +60,10 @@ export const TaskService = {
     const list = await ListModel.findOne({ _id: listId, boardId });
     if (!list) throw createError(HTTP.NOT_FOUND, MESSAGES.LIST.NOT_FOUND);
 
-    return TaskModel.find({ boardId, listId }).sort({ order: 1 });
+    return TaskModel.find({ boardId, listId })
+      .sort({ order: 1 })
+      .populate("assignee", "_id name email")
+      .populate("lastUpdatedBy", "_id name email");
   },
 
   async updateTask(
@@ -69,10 +74,7 @@ export const TaskService = {
     const task = await TaskModel.findById(taskId);
     if (!task) throw createError(HTTP.NOT_FOUND, MESSAGES.TASK.NOT_FOUND);
 
-    const board = await BoardModel.findOne({
-      _id: task.boardId,
-      owner: userId,
-    });
+    const board = await findAccessibleBoard(task.boardId.toString(), userId);
     if (!board) throw createError(HTTP.FORBIDDEN, MESSAGES.SERVER.FORBIDDEN);
 
     if (data.title !== undefined) task.title = data.title.trim();
@@ -80,7 +82,51 @@ export const TaskService = {
       task.description = data.description.trim();
     if (data.priority !== undefined) task.priority = data.priority;
 
+    task.lastUpdatedBy = new Types.ObjectId(userId);
+
     await task.save();
+    await task.populate([
+      { path: "assignee", select: "_id name email" },
+      { path: "lastUpdatedBy", select: "_id name email" },
+    ]);
+    emitTaskUpdated(task.boardId.toString(), task);
+
+    return task;
+  },
+
+  async assignTask(
+    taskId: string,
+    userId: string,
+    assigneeId: string | null
+  ): Promise<ITask> {
+    const task = await TaskModel.findById(taskId);
+    if (!task) throw createError(HTTP.NOT_FOUND, MESSAGES.TASK.NOT_FOUND);
+
+    const board = await findAccessibleBoard(task.boardId.toString(), userId);
+    if (!board) throw createError(HTTP.FORBIDDEN, MESSAGES.SERVER.FORBIDDEN);
+
+    if (assigneeId) {
+      if (!Types.ObjectId.isValid(assigneeId)) {
+        throw createError(HTTP.BAD_REQUEST, MESSAGES.TASK.INVALID_ASSIGNEE);
+      }
+
+      const isBoardMember =
+        board.owner.toString() === assigneeId ||
+        board.members.some((m) => m.toString() === assigneeId);
+
+      if (!isBoardMember) {
+        throw createError(HTTP.BAD_REQUEST, MESSAGES.TASK.INVALID_ASSIGNEE);
+      }
+    }
+
+    task.assignee = assigneeId ? new Types.ObjectId(assigneeId) : null;
+    task.lastUpdatedBy = new Types.ObjectId(userId);
+
+    await task.save();
+    await task.populate([
+      { path: "assignee", select: "_id name email" },
+      { path: "lastUpdatedBy", select: "_id name email" },
+    ]);
     emitTaskUpdated(task.boardId.toString(), task);
 
     return task;
@@ -90,10 +136,7 @@ export const TaskService = {
     const task = await TaskModel.findById(taskId);
     if (!task) throw createError(HTTP.NOT_FOUND, MESSAGES.TASK.NOT_FOUND);
 
-    const board = await BoardModel.findOne({
-      _id: task.boardId,
-      owner: userId,
-    });
+    const board = await findAccessibleBoard(task.boardId.toString(), userId);
     if (!board) throw createError(HTTP.FORBIDDEN, MESSAGES.SERVER.FORBIDDEN);
 
     await task.deleteOne();
@@ -109,28 +152,51 @@ export const TaskService = {
     const task = await TaskModel.findById(taskId);
     if (!task) throw createError(HTTP.NOT_FOUND, MESSAGES.TASK.NOT_FOUND);
 
-    const board = await BoardModel.findOne({
-      _id: task.boardId,
-      owner: userId,
-    });
+    const board = await findAccessibleBoard(task.boardId.toString(), userId);
     if (!board) throw createError(HTTP.FORBIDDEN, MESSAGES.SERVER.FORBIDDEN);
 
     const oldListId = task.listId.toString();
 
-    await TaskModel.updateMany(
-      { listId: oldListId, order: { $gt: task.order } },
-      { $inc: { order: -1 } }
-    );
+    const isOwner = board.owner.toString() === userId.toString();
+    if (!isOwner && board.allowedTransitions.length > 0) {
+      const allowed = board.allowedTransitions.some(
+        (t) => t.from.toString() === oldListId && t.to.toString() === newListId
+      );
+      if (!allowed) {
+        throw createError(HTTP.FORBIDDEN, MESSAGES.TASK.TRANSITION_FORBIDDEN);
+      }
+    }
 
-    await TaskModel.updateMany(
-      { listId: newListId, order: { $gte: newOrder } },
-      { $inc: { order: 1 } }
-    );
+    const session = await mongoose.startSession();
+    try {
+      await session.withTransaction(async () => {
+        await TaskModel.updateMany(
+          { listId: oldListId, order: { $gt: task.order } },
+          { $inc: { order: -1 } },
+          { session }
+        );
 
-    task.listId = new Types.ObjectId(newListId);
-    task.order = newOrder;
+        await TaskModel.updateMany(
+          { listId: newListId, order: { $gte: newOrder } },
+          { $inc: { order: 1 } },
+          { session }
+        );
 
-    await task.save();
+        task.listId = new Types.ObjectId(newListId);
+        task.order = newOrder;
+        task.lastUpdatedBy = new Types.ObjectId(userId);
+
+        await task.save({ session });
+      });
+    } finally {
+      await session.endSession();
+    }
+
+    await task.populate([
+      { path: "assignee", select: "_id name email" },
+      { path: "lastUpdatedBy", select: "_id name email" },
+    ]);
+
     emitTaskMoved(task.boardId.toString(), task, oldListId, newListId);
 
     return task;
@@ -140,17 +206,26 @@ export const TaskService = {
     const list = await ListModel.findById(listId);
     if (!list) throw createError(HTTP.NOT_FOUND, MESSAGES.LIST.NOT_FOUND);
 
-    const board = await BoardModel.findOne({
-      _id: list.boardId,
-      owner: userId,
-    });
+    const board = await findAccessibleBoard(list.boardId.toString(), userId);
     if (!board) throw createError(HTTP.FORBIDDEN, MESSAGES.SERVER.FORBIDDEN);
 
-    const ops = orderedIds.map((id, index) =>
-      TaskModel.updateOne({ _id: id }, { order: index })
-    );
+    const session = await mongoose.startSession();
+    try {
+      await session.withTransaction(async () => {
+        await TaskModel.bulkWrite(
+          orderedIds.map((id, index) => ({
+            updateOne: {
+              filter: { _id: id, listId },
+              update: { order: index },
+            },
+          })),
+          { session }
+        );
+      });
+    } finally {
+      await session.endSession();
+    }
 
-    await Promise.all(ops);
     emitTaskReordered(list.boardId.toString(), listId, orderedIds);
 
     return { message: MESSAGES.TASK.RE_ORDERED };

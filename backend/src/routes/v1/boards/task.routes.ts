@@ -111,4 +111,29 @@ router.patch("/tasks/:taskId/move", TaskController.moveTask);
  */
 router.patch("/lists/:listId/tasks/reorder", TaskController.reorderTasks);
 
+/**
+ * @openapi
+ * /v1/boards/tasks/{taskId}/assign:
+ *   patch:
+ *     summary: Assign or unassign a task to a board member
+ *     tags:
+ *       - Tasks
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               assigneeId:
+ *                 type: string
+ *                 nullable: true
+ *     responses:
+ *       200:
+ *         description: Task assignee updated
+ */
+router.patch("/tasks/:taskId/assign", TaskController.assignTask);
+
 export default router;
