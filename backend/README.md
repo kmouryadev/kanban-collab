@@ -19,21 +19,31 @@ All requests are authenticated using **JWT**, and every collaborative event is s
 
 * JWT-based user authentication
 * Create, update, delete **boards**
-* Share boards with other members
-* Create and manage **lists**
-* Create, update, reorder, move, and delete **tasks**
+* Share boards with other members; owner can remove a member
+* Configure per-board **workflow rules** restricting which lists a member may move a task between (owner always bypasses the rules)
+* Create and manage **lists** (owner only)
+* Create, update, reorder, move, and delete **tasks** (owner and members)
+* Assign a task to any board member and track who last updated it
 * Global error handling, validation & clean service architecture
+* List/task reordering and moving run inside MongoDB transactions, so concurrent drag operations can't corrupt ordering
+
+### **Permission Model**
+
+* **Owner**: full control over the board, lists, members, workflow rules, and tasks
+* **Members**: can view everything and fully manage tasks (create/edit/move/assign/delete), but cannot manage lists, workflow rules, or membership
 
 ### **Real-Time Features**
 
 * Each board is treated as a **Socket.io Room**
-* Users join/leave rooms when opening a board
+* Users join/leave rooms when opening a board (socket handshake JWT is verified, not just decoded)
 * All CRUD operations broadcast updates to room members
 * Supports:
 
   * List reorder
   * Task reorder
   * Task move between lists
+  * Board member added/removed
+  * Board workflow rules updated
 * Authorization on socket connection
 
 ---
@@ -64,7 +74,7 @@ All requests are authenticated using **JWT**, and every collaborative event is s
 
 ---
 
-## 📂 **Folder Structure**
+## **Folder Structure**
 
 ```
 backend/
@@ -125,6 +135,7 @@ backend/
 │   │   ├── userpayload.ts
 |   |
 │   ├── utils/
+│   │   ├── boardAccess.ts
 │   │   ├── error.ts
 │   │   ├── generateToken.ts
 │   │
@@ -139,7 +150,7 @@ backend/
 
 ---
 
-## 🔑 **Environment Variables**
+## **Environment Variables**
 
 Create a `.env` file in the **backend root**:
 
@@ -148,7 +159,12 @@ PORT=5000
 MONGO_URI=mongodb://localhost:27017/kanban
 JWT_SECRET=your_jwt_secret
 JWT_TOKEN_EXPIRE_TIME=1d
+FRONTEND_URL=http://localhost:5173
 ```
+
+`FRONTEND_URL` is used to scope both Express CORS and the Socket.io CORS origin — without it, both fall back to `http://localhost:5173`.
+
+MongoDB must run as a **replica set** (MongoDB Atlas, including the free M0 tier, satisfies this automatically). List/task reordering and moving use multi-document transactions, which a standalone `mongod` cannot run — for local MongoDB, initialize a single-node replica set with `rs.initiate()`.
 
 ---
 
@@ -180,10 +196,12 @@ GET     /api/v1/boards
 POST    /api/v1/boards
 PATCH   /api/v1/boards/:id
 DELETE  /api/v1/boards/:id
-SHARED  /api/v1/boards/:id/share
+POST    /api/v1/boards/:id/share
+DELETE  /api/v1/boards/:id/members/:memberId    (owner only)
+PATCH   /api/v1/boards/:id/workflow             (owner only)
 ```
 
-### **List APIs**
+### **List APIs** (GET: owner and members; everything else: owner only)
 
 ```
 GET       /api/v1/boards/:boardId/lists
@@ -193,15 +211,16 @@ DELETE    /api/v1/boards/:boardId/lists/:listId
 REORDER   /api/v1/boards/:boardId/lists/reorder
 ```
 
-### **Task APIs**
+### **Task APIs** (owner and members)
 
 ```
 GET       /api/v1/boards/:boardId/lists/:listId/tasks
 POST      /api/v1/boards/:boardId/lists/:listId/tasks
-PATCH     /api/v1/boards/:boardId/tasks/:taskId
-DELETE    /api/v1/boards/:boardId/tasks/:taskId
-MOVE      /api/v1/boards/:boardId/tasks/:taskId/move
-REORDER   /api/v1/boards/:boardId/tasks/:listId/reorder
+PATCH     /api/v1/boards/tasks/:taskId
+DELETE    /api/v1/boards/tasks/:taskId
+MOVE      /api/v1/boards/tasks/:taskId/move
+ASSIGN    /api/v1/boards/tasks/:taskId/assign
+REORDER   /api/v1/boards/lists/:listId/tasks/reorder
 ```
 
 ---
@@ -217,6 +236,9 @@ REORDER   /api/v1/boards/:boardId/tasks/:listId/reorder
 
 * `board:updated`
 * `board:deleted`
+* `board:memberAdded`
+* `board:memberRemoved`
+* `board:workflowUpdated`
 * `list:created`
 * `list:updated`
 * `list:deleted`

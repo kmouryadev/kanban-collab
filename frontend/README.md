@@ -113,7 +113,10 @@ Includes:
 
 * Token-based auth
 * Auto reconnect
-* Live board/list/task updates
+* Live board/list/task/member/workflow updates
+
+Task assignment and board workflow/member management each have their own hooks:
+`useAssignTask.ts`, `useBoardWorkflow.ts`, `useBoardMembers.ts`
 
 ---
 
@@ -163,11 +166,16 @@ Your design system grows automatically as you add components.
 
 * JWT authentication
 * Board listing & management
-* List creation, editing, deletion
-* Task creation, editing, deletion
+* List creation, editing, deletion (owner only)
+* Task creation, editing, deletion, assignment (owner and members)
+* Assign a task to any board member, with a quick "Assign to me" shortcut
+* Filter the board by assignee (All / Unassigned / Me / a specific member)
+* Owner-configurable workflow rules restricting which lists members can move tasks between, with a client-side check that blocks disallowed drags before they hit the server
+* Remove a member from a board (owner only); the removed member is kicked out live via Socket.IO
 * Drag and drop (lists & tasks)
 * Real-time sync using Socket.IO
 * Share boards with other users
 * Mobile responsive layout
+* Colorful, Trello-style board UI — per-board background banners, per-list accent colors, and colored member/assignee avatars
 
 ---

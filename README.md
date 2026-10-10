@@ -13,20 +13,29 @@ This document explains how to install, configure, and run the full project, alon
 
 * Create, update, delete boards
 * Share boards with other users
+* Remove members from a board (owner only)
+* Configure workflow rules restricting which lists members can move tasks between (owner only; owner always bypasses the rules)
 * Real-time synchronized board updates
 
 ### **List Management**
 
-* Create, update, delete lists
+* Create, update, delete, reorder lists (owner only)
 * Drag-and-drop list reordering
 * Real-time list updates
 
 ### **Task Management**
 
-* Create, update, delete tasks
-* Move tasks between lists
-* Reorder tasks inside lists
+* Create, update, delete tasks (board owner and members)
+* Move tasks between lists and reorder tasks inside a list
+* Assign a task to any board member, including yourself
+* Track who last updated a task
+* Filter the board by assignee (All / Unassigned / Me / a specific member)
 * Real-time task sync
+
+### **Permissions Overview**
+
+* **Owner**: full control — boards, lists, members, workflow rules, and tasks
+* **Members**: can view everything and fully manage tasks (create/edit/move/assign/delete), but cannot manage lists, workflow rules, or board membership
 
 ### **Authentication**
 
@@ -36,7 +45,7 @@ This document explains how to install, configure, and run the full project, alon
 ### **Real-Time Collaboration**
 
 * Socket.io room-based updates
-* Live syncing of board/list/task operations
+* Live syncing of board/list/task/member/workflow operations
 
 ---
 
@@ -192,3 +201,7 @@ Add attachments, due dates, labels, and checklist subtasks.
 ### **🔹 3. Collaboration Features**
 
 Show online users on a board and real-time typing/edit indicators.
+
+### **🔹 4. Roles Beyond Owner/Member**
+
+Introduce admin/editor/viewer-style roles instead of the current owner/member split.
