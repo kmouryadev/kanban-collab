@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { getSocket } from "../lib/socket";
+import { AppToast } from "../lib/appToast";
 
 import { LISTS_QUERY_KEY } from "./useLists";
 import { TASKS_QUERY_KEY } from "./useTasks";
@@ -12,9 +14,10 @@ import type {
   TasksResponse,
 } from "../types/api";
 
-export const useRealtimeBoard = (boardId: string) => {
+export const useRealtimeBoard = (boardId: string, currentUserId?: string) => {
   const socket = getSocket();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!boardId) return;
@@ -51,6 +54,32 @@ export const useRealtimeBoard = (boardId: string) => {
           boards: prev.boards.filter((board) => board._id !== deletedId),
         };
       });
+    });
+
+    socket.on("board:memberRemoved", ({ memberId }) => {
+      if (currentUserId && memberId === currentUserId) {
+        AppToast.info("You were removed from this board");
+        navigate("/boards");
+        return;
+      }
+
+      queryClient.setQueryData<BoardResponse>(["board", boardId], (prev) => {
+        if (!prev) return prev;
+        return {
+          board: {
+            ...prev.board,
+            members: prev.board.members.filter(
+              (member) => member._id !== memberId
+            ),
+          },
+        };
+      });
+    });
+
+    socket.on("board:workflowUpdated", ({ allowedTransitions }) => {
+      queryClient.setQueryData<BoardResponse>(["board", boardId], (prev) =>
+        prev ? { board: { ...prev.board, allowedTransitions } } : prev
+      );
     });
 
     socket.on("list:created", ({ list }) => {
@@ -186,6 +215,8 @@ export const useRealtimeBoard = (boardId: string) => {
       socket.off("connect", joinRoom);
       socket.off("board:updated");
       socket.off("board:deleted");
+      socket.off("board:memberRemoved");
+      socket.off("board:workflowUpdated");
       socket.off("list:created");
       socket.off("list:updated");
       socket.off("list:deleted");
@@ -196,5 +227,5 @@ export const useRealtimeBoard = (boardId: string) => {
       socket.off("task:deleted");
       socket.off("task:moved");
     };
-  }, [boardId, queryClient, socket]);
+  }, [boardId, queryClient, socket, currentUserId, navigate]);
 };

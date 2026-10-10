@@ -1,3 +1,8 @@
+export interface BoardTransition {
+  from: string;
+  to: string;
+}
+
 export interface Board {
   _id: string;
   title: string;
@@ -15,6 +20,7 @@ export interface Board {
     createdAt: string;
     updatedAt: string;
   }>;
+  allowedTransitions: BoardTransition[];
   createdAt: string;
   updatedAt: string;
 }

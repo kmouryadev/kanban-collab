@@ -1,5 +1,5 @@
 import React from "react";
-import { Calendar, Edit, Trash2 } from "lucide-react";
+import { Calendar, Edit, Trash2, UserCircle2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -7,12 +7,26 @@ import {
   DialogTitle,
 } from "../../ui/dialog";
 import { Button } from "../../ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../ui/select";
 import type { Task } from "../../../types/tasks";
+import { useAssignTask } from "../../../hooks/useAssignTask";
+import { useAuthStore } from "../../../store/auth.store";
+
+type BoardMember = { _id: string; name: string; email: string };
+
+const UNASSIGNED = "__unassigned__";
 
 interface TaskDetailModalProps {
   task: Task | null;
+  boardId: string;
+  boardMembers?: BoardMember[];
   open: boolean;
-  isOwner: boolean;
   onOpenChange: (open: boolean) => void;
   onEdit?: (task: Task) => void;
   onDelete?: (task: Task) => void;
@@ -26,12 +40,16 @@ const priorityConfig = {
 
 const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   task,
+  boardId,
+  boardMembers = [],
   open,
-  isOwner,
   onOpenChange,
   onEdit,
   onDelete,
 }) => {
+  const { assign } = useAssignTask(boardId);
+  const currentUser = useAuthStore((state) => state.user);
+
   if (!task) return null;
 
   const priority = task.priority || "medium";
@@ -98,36 +116,85 @@ const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                 <Calendar className="w-4 h-4" />
                 <span className="text-sm">{updatedDate}</span>
               </div>
+              {task.lastUpdatedBy && (
+                <p className="text-xs text-gray-500 mt-1">
+                  by {task.lastUpdatedBy.name}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-semibold text-gray-400 mb-2">
+              Assignee
+            </h3>
+            <div className="flex items-center gap-3">
+              <Select
+                value={task.assignee?._id ?? UNASSIGNED}
+                onValueChange={(value) =>
+                  assign.mutate({
+                    taskId: task._id,
+                    assigneeId: value === UNASSIGNED ? null : value,
+                  })
+                }
+              >
+                <SelectTrigger className="w-56 bg-slate-800 border-white/10 text-white">
+                  <UserCircle2 className="w-4 h-4 mr-2 shrink-0" />
+                  <SelectValue placeholder="Unassigned" />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-900 border-white/10 text-white">
+                  <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
+                  {boardMembers.map((member) => (
+                    <SelectItem key={member._id} value={member._id}>
+                      {member.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {currentUser && task.assignee?._id !== currentUser.id && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    assign.mutate({
+                      taskId: task._id,
+                      assigneeId: currentUser.id,
+                    })
+                  }
+                  className="border-indigo-600 text-indigo-400 hover:bg-indigo-600 hover:text-white"
+                >
+                  Assign to me
+                </Button>
+              )}
             </div>
           </div>
         </div>
 
-        {isOwner && (
-          <div className="flex justify-end gap-3 mt-8 pt-6 border-t border-white/10">
-            <Button
-              variant="outline"
-              onClick={() => {
-                onEdit?.(task);
-                onOpenChange(false);
-              }}
-              className="border-white/10 text-white hover:bg-white/5"
-            >
-              <Edit className="w-4 h-4 mr-2" />
-              Edit Task
-            </Button>
-            <Button
-              variant="default"
-              onClick={() => {
-                onDelete?.(task);
-                onOpenChange(false);
-              }}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              <Trash2 className="w-4 h-4 mr-2" />
-              Delete Task
-            </Button>
-          </div>
-        )}
+        <div className="flex justify-end gap-3 mt-8 pt-6 border-t border-white/10">
+          <Button
+            variant="outline"
+            onClick={() => {
+              onEdit?.(task);
+              onOpenChange(false);
+            }}
+            className="border-white/10 text-white hover:bg-white/5"
+          >
+            <Edit className="w-4 h-4 mr-2" />
+            Edit Task
+          </Button>
+          <Button
+            variant="default"
+            onClick={() => {
+              onDelete?.(task);
+              onOpenChange(false);
+            }}
+            className="bg-red-600 hover:bg-red-700"
+          >
+            <Trash2 className="w-4 h-4 mr-2" />
+            Delete Task
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );

@@ -10,6 +10,9 @@ export const BOARDS = {
   BASE: `${API_BASE}/boards`,
   SINGLE: (id: string) => `${API_BASE}/boards/${id}`,
   SHARED: (id: string) => `${API_BASE}/boards/${id}/share`,
+  MEMBER: (id: string, memberId: string) =>
+    `${API_BASE}/boards/${id}/members/${memberId}`,
+  WORKFLOW: (id: string) => `${API_BASE}/boards/${id}/workflow`,
 };
 
 export const LISTS = {
@@ -26,4 +29,5 @@ export const TASKS = {
   REORDER: (listId: string) =>
     `${API_BASE}/boards/lists/${listId}/tasks/reorder`,
   MOVE: (taskId: string) => `${API_BASE}/boards/tasks/${taskId}/move`,
+  ASSIGN: (taskId: string) => `${API_BASE}/boards/tasks/${taskId}/assign`,
 };

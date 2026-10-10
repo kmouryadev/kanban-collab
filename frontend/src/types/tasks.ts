@@ -1,5 +1,11 @@
 export type TaskPriority = "low" | "medium" | "high";
 
+export interface TaskUserRef {
+  _id: string;
+  name: string;
+  email: string;
+}
+
 export interface Task {
   _id: string;
   title: string;
@@ -8,6 +14,8 @@ export interface Task {
   listId: string;
   order: number;
   priority: TaskPriority;
+  assignee?: TaskUserRef | null;
+  lastUpdatedBy?: TaskUserRef | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -19,6 +19,7 @@ import {
 import type { List } from "../../../types/list";
 import type { Task } from "../../../types/tasks";
 import type { TasksResponse } from "../../../types/api";
+import type { BoardTransition } from "../../../types/board";
 
 import ListColumn from "../List/ListColumn";
 
@@ -54,13 +55,18 @@ const parseId = (value: string): DragMeta => {
   return null;
 };
 
+type BoardMember = { _id: string; name: string; email: string };
+
 type Props = {
   boardId: string;
   lists: List[];
   tasksByList: Record<string, Task[]>;
+  boardMembers?: BoardMember[];
   isMobile?: boolean;
   onDragStateChange?: (dragging: boolean) => void;
   isOwner: boolean;
+  dndDisabled?: boolean;
+  allowedTransitions?: BoardTransition[];
   onOpenTaskEdit?: (task: Task) => void;
   onOpenTaskCreate?: (list: List) => void;
   onOpenTaskDelete?: (task: Task) => void;
@@ -73,9 +79,12 @@ const BoardDndContext: React.FC<Props> = ({
   boardId,
   lists,
   tasksByList,
+  boardMembers = [],
   isMobile = false,
   onDragStateChange,
   isOwner,
+  dndDisabled = false,
+  allowedTransitions = [],
   onOpenTaskEdit,
   onOpenTaskCreate,
   onOpenListEdit,
@@ -241,6 +250,8 @@ const BoardDndContext: React.FC<Props> = ({
       isDraggingRef.current = false;
       onDragStateChange?.(false);
 
+      if (dndDisabled) return;
+
       const { active, over } = event;
       if (!over) return;
       if (active.id === over.id) return;
@@ -296,6 +307,19 @@ const BoardDndContext: React.FC<Props> = ({
           return;
         }
 
+        if (!isOwner && allowedTransitions.length > 0) {
+          const transitionAllowed = allowedTransitions.some(
+            (t) => t.from === src && t.to === dst
+          );
+          if (!transitionAllowed) {
+            AppToast.error(
+              "Move not allowed",
+              "This move isn't allowed by the board's workflow rules."
+            );
+            return;
+          }
+        }
+
         const { updatedSource, updatedDest } = moveTaskToAnotherList(
           sourceTasks,
           destTasks,
@@ -323,10 +347,14 @@ const BoardDndContext: React.FC<Props> = ({
       moveTask,
       reorderTasks,
       onDragStateChange,
+      isOwner,
+      allowedTransitions,
+      dndDisabled,
     ]
   );
 
   const handleDragStart = () => {
+    if (dndDisabled) return;
     isDraggingRef.current = true;
     onDragStateChange?.(true);
   };
@@ -353,7 +381,9 @@ const BoardDndContext: React.FC<Props> = ({
               <ListColumn
                 list={list}
                 tasks={tasksByList[list._id] ?? []}
+                boardMembers={boardMembers}
                 isMobile={isMobile}
+                dndDisabled={dndDisabled}
                 allLists={lists}
                 boardId={boardId}
                 isOwner={isOwner}

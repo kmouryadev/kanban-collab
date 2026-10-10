@@ -1,6 +1,6 @@
 import { BOARDS } from "../apiRoutes";
 import type { BoardResponse, BoardsResponse } from "../types/api";
-import type { Board } from "../types/board";
+import type { Board, BoardTransition } from "../types/board";
 import axiosClient from "./axiosClient";
 
 export interface BoardPayloadDTO {
@@ -39,5 +39,23 @@ export const boardsApi = {
 
   share(boardId: string, email: string) {
     return axiosClient.post(BOARDS.SHARED(boardId), { email });
+  },
+
+  removeMember: async (
+    boardId: string,
+    memberId: string
+  ): Promise<{ message: string }> => {
+    const res = await axiosClient.delete(BOARDS.MEMBER(boardId, memberId));
+    return res.data;
+  },
+
+  updateWorkflow: async (
+    boardId: string,
+    transitions: BoardTransition[]
+  ): Promise<{ allowedTransitions: BoardTransition[]; message: string }> => {
+    const res = await axiosClient.patch(BOARDS.WORKFLOW(boardId), {
+      transitions,
+    });
+    return res.data;
   },
 };

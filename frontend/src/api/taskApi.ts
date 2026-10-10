@@ -56,4 +56,12 @@ export const taskApi = {
     });
     return res.data;
   },
+
+  assignTask: async (
+    taskId: string,
+    assigneeId: string | null
+  ): Promise<Task> => {
+    const res = await axiosClient.patch(TASKS.ASSIGN(taskId), { assigneeId });
+    return res.data;
+  },
 };
